@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Stock Advisor Report -- 2026-05-13 19:48</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;padding:24px}
+    h2{font-size:1rem;color:#8b949e;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px}
+    .header{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;gap:16px}
+    .header h1{font-size:1.3rem;color:#f0f6fc}
+    .badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.75rem;font-weight:700}
+    .warn-badge{background:#da363322;color:#f85149;border:1px solid #da363366;padding:4px 12px;border-radius:12px;font-size:.75rem;font-weight:700}
+    .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:20px}
+    .card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:18px 20px}
+    .card-label{font-size:.7rem;color:#8b949e;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+    .card-value{font-size:1.6rem;font-weight:700}
+    .card-sub{font-size:.8rem;color:#8b949e;margin-top:4px}
+    .section{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px;margin-bottom:20px}
+    table{width:100%;border-collapse:collapse}
+    thead th{padding:10px 12px;text-align:left;font-size:.7rem;color:#8b949e;text-transform:uppercase;background:#0d1117;border-bottom:1px solid #30363d}
+    tbody tr{border-bottom:1px solid #1c2128}
+    tbody tr:hover{background:#1c2128}
+    tbody td{padding:12px;font-size:.88rem}
+    .asset-card{background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:16px;margin-bottom:12px}
+    .asset-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+    .asset-ticker{font-size:1.1rem;font-weight:700;color:#f0f6fc}
+    .score-badge{padding:4px 12px;border-radius:12px;font-size:.8rem;font-weight:700}
+    .risk-tag{font-size:.7rem;color:#8b949e;margin-left:auto}
+    .asset-body{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+    .metric-col{font-size:.78rem}
+    .metric-title{color:#58a6ff;font-weight:600;margin-bottom:4px}
+    .metric-col ul{padding-left:14px;color:#8b949e;line-height:1.6}
+    .metric-col ul li{margin-bottom:2px}
+    .warning-item{background:#2b1a1a;border:1px solid #da363344;border-radius:4px;padding:8px 12px;margin-bottom:6px;color:#f85149;font-size:.85rem}
+    .news-item{padding:8px 0;border-bottom:1px solid #1c2128;font-size:.83rem;line-height:1.4}
+    .news-source{color:#58a6ff;font-size:.7rem;font-weight:700;margin-right:8px;text-transform:uppercase}
+    .green{color:#3fb950} .red{color:#f85149}
+    .disclaimer{font-size:.75rem;color:#484f58;margin-top:24px;text-align:center;line-height:1.6}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Stock Advisor</h1>
+    <span class="badge" style="background:#1f6feb22;color:#58a6ff;border:1px solid #1f6feb66">ADVISORY ONLY</span>
+    <span class="warn-badge">NEVER PLACES REAL TRADES</span>
+    <span style="margin-left:auto;font-size:.8rem;color:#8b949e">2026-05-13 19:48</span>
+  </div>
+
+  <div class="grid3">
+    <div class="card">
+      <div class="card-label">Market Regime</div>
+      <div class="card-value" style="color:#3fb950">BULLISH</div>
+      <div class="card-sub">More growth exposure allowed. Growth ETFs and quality stocks...</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Monthly Budget</div>
+      <div class="card-value">$200</div>
+      <div class="card-sub">Suggested allocation: $200.00</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Portfolio Value</div>
+      <div class="card-value">$0.00</div>
+      <div class="card-sub green">
+        +$0.00
+        (+0.0%)
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">Assets Analyzed</div>
+      <div class="card-value">19</div>
+      <div class="card-sub">9 rated Buy or better</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Market Regime Signals</h2>
+    <div style="margin:4px 0;color:#3fb950">S&P500 is above its 200-day average -- long-term uptrend</div><div style="margin:4px 0;color:#3fb950">S&P500 above 50-day average -- short-term momentum positive</div><div style="margin:4px 0;color:#3fb950">VIX = 18.0 -- low fear, calm markets</div><div style="margin:4px 0;color:#3fb950">Nasdaq above 200-day average -- tech sector healthy</div><div style="margin:4px 0;color:#d29922">10-yr yield = 4.48%</div>
+  </div>
+
+  <div class="section">
+    <h2>Suggested Monthly Allocation ($200 budget)</h2>
+    <table>
+      <thead><tr><th>Ticker</th><th>Amount</th><th>Type</th><th>Rating</th><th>Reason</th></tr></thead>
+      <tbody><tr>
+              <td><strong>GOOGL</strong></td>
+              <td>$60.00</td>
+              <td>Stock</td>
+              <td><span class="badge" style="background:#56d36422;color:#56d364;border:1px solid #56d36466">Buy</span></td>
+              <td>PE 30.7 -- somewhat expensive</td>
+            </tr><tr>
+              <td><strong>KO</strong></td>
+              <td>$80.00</td>
+              <td>ETF/Index</td>
+              <td><span class="badge" style="background:#56d36422;color:#56d364;border:1px solid #56d36466">Buy</span></td>
+              <td>PE 25.2 -- somewhat expensive</td>
+            </tr><tr>
+              <td><strong>SCHD</strong></td>
+              <td>$60.00</td>
+              <td>ETF/Index</td>
+              <td><span class="badge" style="background:#56d36422;color:#56d364;border:1px solid #56d36466">Buy</span></td>
+              <td>PE 18.8 -- fairly valued</td>
+            </tr></tbody>
+    </table>
+    <div style="margin-top:12px;font-size:.8rem;color:#8b949e">
+      Total allocated: $200.00 | Remaining: $0.00 (keep as cash or add to VOO)
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Portfolio Holdings</h2>
+    <table>
+      <thead><tr><th>Ticker</th><th>Quantity</th><th>Avg Price</th><th>Current</th><th>Value</th><th>P&L</th><th>Category</th></tr></thead>
+      <tbody><tr><td colspan="7" style="color:#8b949e;text-align:center">No holdings yet</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Asset Analysis (Scored 0-100)</h2>
+    
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">GOOGL</span>
+                <span class="score-badge" style="background:#56d36422;color:#56d364;border:1px solid #56d36466">
+                  73/100 &mdash; Buy
+                </span>
+                <span class="risk-tag">MEDIUM RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (60)</div>
+                  <ul><li>PE 30.7 -- somewhat expensive</li><li>PEG 1.53 -- reasonable</li><li>Profit margin 37.9% -- excellent</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (90)</div>
+                  <ul><li>Revenue growing 21.8%/yr -- strong</li><li>Earnings growing 82.0%/yr -- great</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (95)</div>
+                  <ul><li>Price above 200-day MA -- long-term uptrend</li><li>Price above 50-day MA -- short-term momentum positive</li><li>Strong momentum +30.2% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (40)</div>
+                  <ul><li>High volatility 29.2%/yr -- bumpy ride</li><li>Max drawdown -20.4%</li><li>Beta 1.27 -- moves with market</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">KO</span>
+                <span class="score-badge" style="background:#56d36422;color:#56d364;border:1px solid #56d36466">
+                  71/100 &mdash; Buy
+                </span>
+                <span class="risk-tag">LOW-MEDIUM RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (45)</div>
+                  <ul><li>PE 25.2 -- somewhat expensive</li><li>PEG 4.10 -- paying a lot for growth</li><li>Profit margin 27.8% -- excellent</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (80)</div>
+                  <ul><li>Revenue growing 12.1%/yr -- solid</li><li>Earnings growing 18.2%/yr -- great</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (87)</div>
+                  <ul><li>Price above 200-day MA -- long-term uptrend</li><li>Price above 50-day MA -- short-term momentum positive</li><li>Positive momentum +2.2% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (85)</div>
+                  <ul><li>Moderate volatility 16.0%/yr</li><li>Low max drawdown -7.9%</li><li>Beta 0.36 -- less volatile than market</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">NVDA</span>
+                <span class="score-badge" style="background:#56d36422;color:#56d364;border:1px solid #56d36466">
+                  70/100 &mdash; Buy
+                </span>
+                <span class="risk-tag">MEDIUM RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (55)</div>
+                  <ul><li>PE 46.2 -- very expensive</li><li>PEG 0.70 -- great value for growth</li><li>Profit margin 55.6% -- excellent</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (90)</div>
+                  <ul><li>Revenue growing 73.2%/yr -- strong</li><li>Earnings growing 95.6%/yr -- great</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (95)</div>
+                  <ul><li>Price above 200-day MA -- long-term uptrend</li><li>Price above 50-day MA -- short-term momentum positive</li><li>Strong momentum +21.0% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (30)</div>
+                  <ul><li>High volatility 33.5%/yr -- bumpy ride</li><li>Max drawdown -20.2%</li><li>Beta 2.24 -- much more volatile than market</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">SCHD</span>
+                <span class="score-badge" style="background:#56d36422;color:#56d364;border:1px solid #56d36466">
+                  69/100 &mdash; Buy
+                </span>
+                <span class="risk-tag">LOW RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (62)</div>
+                  <ul><li>PE 18.8 -- fairly valued</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (50)</div>
+                  <ul><li>Data not available</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (87)</div>
+                  <ul><li>Price above 200-day MA -- long-term uptrend</li><li>Price above 50-day MA -- short-term momentum positive</li><li>Positive momentum +2.0% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (90)</div>
+                  <ul><li>Low volatility 11.2%/yr -- stable</li><li>Low max drawdown -4.6%</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">AAPL</span>
+                <span class="score-badge" style="background:#56d36422;color:#56d364;border:1px solid #56d36466">
+                  69/100 &mdash; Buy
+                </span>
+                <span class="risk-tag">MEDIUM RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (45)</div>
+                  <ul><li>PE 36.5 -- somewhat expensive</li><li>PEG 2.58 -- paying a lot for growth</li><li>Profit margin 27.2% -- excellent</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (80)</div>
+                  <ul><li>Revenue growing 16.6%/yr -- solid</li><li>Earnings growing 21.8%/yr -- great</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (95)</div>
+                  <ul><li>Price above 200-day MA -- long-term uptrend</li><li>Price above 50-day MA -- short-term momentum positive</li><li>Strong momentum +15.0% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (65)</div>
+                  <ul><li>Moderate volatility 22.6%/yr</li><li>Max drawdown -13.8%</li><li>Beta 1.06 -- moves with market</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">AMZN</span>
+                <span class="score-badge" style="background:#56d36422;color:#56d364;border:1px solid #56d36466">
+                  69/100 &mdash; Buy
+                </span>
+                <span class="risk-tag">MEDIUM RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (55)</div>
+                  <ul><li>PE 32.2 -- somewhat expensive</li><li>PEG 1.85 -- reasonable</li><li>Profit margin 12.2% -- solid</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (80)</div>
+                  <ul><li>Revenue growing 16.6%/yr -- solid</li><li>Earnings growing 74.8%/yr -- great</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (95)</div>
+                  <ul><li>Price above 200-day MA -- long-term uptrend</li><li>Price above 50-day MA -- short-term momentum positive</li><li>Strong momentum +34.9% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (40)</div>
+                  <ul><li>High volatility 29.6%/yr -- bumpy ride</li><li>Max drawdown -21.7%</li><li>Beta 1.47 -- moves with market</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">VXUS</span>
+                <span class="score-badge" style="background:#56d36422;color:#56d364;border:1px solid #56d36466">
+                  68/100 &mdash; Buy
+                </span>
+                <span class="risk-tag">LOW RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (62)</div>
+                  <ul><li>PE 18.6 -- fairly valued</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (50)</div>
+                  <ul><li>Data not available</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (87)</div>
+                  <ul><li>Price above 200-day MA -- long-term uptrend</li><li>Price above 50-day MA -- short-term momentum positive</li><li>Positive momentum +3.6% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (80)</div>
+                  <ul><li>Low volatility 14.9%/yr -- stable</li><li>Max drawdown -11.3%</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">MSFT</span>
+                <span class="score-badge" style="background:#56d36422;color:#56d364;border:1px solid #56d36466">
+                  67/100 &mdash; Buy
+                </span>
+                <span class="risk-tag">MEDIUM RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (77)</div>
+                  <ul><li>PE 24.1 -- fairly valued</li><li>PEG 1.26 -- reasonable</li><li>Profit margin 39.3% -- excellent</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (80)</div>
+                  <ul><li>Revenue growing 18.3%/yr -- solid</li><li>Earnings growing 23.4%/yr -- great</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (47)</div>
+                  <ul><li>Price below 200-day MA -- long-term downtrend</li><li>Price above 50-day MA -- short-term momentum positive</li><li>Positive momentum +0.8% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (50)</div>
+                  <ul><li>Moderate volatility 23.6%/yr</li><li>Large max drawdown -33.9% -- high risk</li><li>Beta 1.09 -- moves with market</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">PEP</span>
+                <span class="score-badge" style="background:#56d36422;color:#56d364;border:1px solid #56d36466">
+                  66/100 &mdash; Buy
+                </span>
+                <span class="risk-tag">LOW-MEDIUM RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (67)</div>
+                  <ul><li>PE 23.5 -- fairly valued</li><li>PEG 1.63 -- reasonable</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (70)</div>
+                  <ul><li>Revenue growing 8.5%/yr -- slow</li><li>Earnings growing 27.8%/yr -- great</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (50)</div>
+                  <ul><li>Price above 200-day MA -- long-term uptrend</li><li>Price below 50-day MA -- short-term weakness</li><li>Negative momentum -9.8% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (75)</div>
+                  <ul><li>Moderate volatility 21.5%/yr</li><li>Max drawdown -11.6%</li><li>Beta 0.39 -- less volatile than market</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">VOO</span>
+                <span class="score-badge" style="background:#d2992222;color:#d29922;border:1px solid #d2992266">
+                  64/100 &mdash; Hold
+                </span>
+                <span class="risk-tag">LOW RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (45)</div>
+                  <ul><li>PE 29.5 -- somewhat expensive</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (50)</div>
+                  <ul><li>Data not available</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (87)</div>
+                  <ul><li>Price above 200-day MA -- long-term uptrend</li><li>Price above 50-day MA -- short-term momentum positive</li><li>Positive momentum +9.3% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (90)</div>
+                  <ul><li>Low volatility 12.0%/yr -- stable</li><li>Low max drawdown -8.9%</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">VTI</span>
+                <span class="score-badge" style="background:#d2992222;color:#d29922;border:1px solid #d2992266">
+                  64/100 &mdash; Hold
+                </span>
+                <span class="risk-tag">LOW RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (45)</div>
+                  <ul><li>PE 28.5 -- somewhat expensive</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (50)</div>
+                  <ul><li>Data not available</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (87)</div>
+                  <ul><li>Price above 200-day MA -- long-term uptrend</li><li>Price above 50-day MA -- short-term momentum positive</li><li>Positive momentum +8.9% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (90)</div>
+                  <ul><li>Low volatility 12.3%/yr -- stable</li><li>Low max drawdown -8.9%</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">SPY</span>
+                <span class="score-badge" style="background:#d2992222;color:#d29922;border:1px solid #d2992266">
+                  64/100 &mdash; Hold
+                </span>
+                <span class="risk-tag">LOW RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (45)</div>
+                  <ul><li>PE 27.9 -- somewhat expensive</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (50)</div>
+                  <ul><li>Data not available</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (87)</div>
+                  <ul><li>Price above 200-day MA -- long-term uptrend</li><li>Price above 50-day MA -- short-term momentum positive</li><li>Positive momentum +9.3% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (90)</div>
+                  <ul><li>Low volatility 12.0%/yr -- stable</li><li>Low max drawdown -8.9%</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">BRK-B</span>
+                <span class="score-badge" style="background:#d2992222;color:#d29922;border:1px solid #d2992266">
+                  64/100 &mdash; Hold
+                </span>
+                <span class="risk-tag">MEDIUM RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (65)</div>
+                  <ul><li>PE 14.4 -- attractively valued</li><li>PEG 10.06 -- paying a lot for growth</li><li>Profit margin 19.3% -- solid</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (70)</div>
+                  <ul><li>Revenue growing 4.4%/yr -- slow</li><li>Earnings growing 119.6%/yr -- great</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (30)</div>
+                  <ul><li>Price below 200-day MA -- long-term downtrend</li><li>Price above 50-day MA -- short-term momentum positive</li><li>Negative momentum -3.1% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (90)</div>
+                  <ul><li>Low volatility 14.4%/yr -- stable</li><li>Max drawdown -10.7%</li><li>Beta 0.62 -- less volatile than market</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">COST</span>
+                <span class="score-badge" style="background:#d2992222;color:#d29922;border:1px solid #d2992266">
+                  63/100 &mdash; Hold
+                </span>
+                <span class="risk-tag">MEDIUM RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (20)</div>
+                  <ul><li>PE 53.5 -- very expensive</li><li>PEG 5.19 -- paying a lot for growth</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (90)</div>
+                  <ul><li>Revenue growing 21.5%/yr -- strong</li><li>Earnings growing 45.5%/yr -- great</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (87)</div>
+                  <ul><li>Price above 200-day MA -- long-term uptrend</li><li>Price above 50-day MA -- short-term momentum positive</li><li>Positive momentum +3.0% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (65)</div>
+                  <ul><li>Moderate volatility 18.5%/yr</li><li>Max drawdown -19.3%</li><li>Beta 0.91 -- moves with market</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">QQQ</span>
+                <span class="score-badge" style="background:#d2992222;color:#d29922;border:1px solid #d2992266">
+                  62/100 &mdash; Hold
+                </span>
+                <span class="risk-tag">LOW RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (45)</div>
+                  <ul><li>PE 34.9 -- somewhat expensive</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (50)</div>
+                  <ul><li>Data not available</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (95)</div>
+                  <ul><li>Price above 200-day MA -- long-term uptrend</li><li>Price above 50-day MA -- short-term momentum positive</li><li>Strong momentum +19.1% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (65)</div>
+                  <ul><li>Moderate volatility 16.0%/yr</li><li>Max drawdown -12.0%</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">ASML</span>
+                <span class="score-badge" style="background:#d2992222;color:#d29922;border:1px solid #d2992266">
+                  60/100 &mdash; Hold
+                </span>
+                <span class="risk-tag">MEDIUM RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (30)</div>
+                  <ul><li>PE 52.1 -- very expensive</li><li>PEG 2.26 -- paying a lot for growth</li><li>Profit margin 29.7% -- excellent</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (80)</div>
+                  <ul><li>Revenue growing 13.2%/yr -- solid</li><li>Earnings growing 19.2%/yr -- great</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (87)</div>
+                  <ul><li>Price above 200-day MA -- long-term uptrend</li><li>Price above 50-day MA -- short-term momentum positive</li><li>Positive momentum +12.8% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (40)</div>
+                  <ul><li>High volatility 39.7%/yr -- bumpy ride</li><li>Max drawdown -17.9%</li><li>Beta 1.37 -- moves with market</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">PG</span>
+                <span class="score-badge" style="background:#d2992222;color:#d29922;border:1px solid #d2992266">
+                  53/100 &mdash; Hold
+                </span>
+                <span class="risk-tag">LOW-MEDIUM RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (57)</div>
+                  <ul><li>PE 20.7 -- fairly valued</li><li>PEG 4.04 -- paying a lot for growth</li><li>Profit margin 19.2% -- solid</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (63)</div>
+                  <ul><li>Revenue growing 7.4%/yr -- slow</li><li>Earnings growing 5.8%/yr -- ok</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (10)</div>
+                  <ul><li>Price below 200-day MA -- long-term downtrend</li><li>Price below 50-day MA -- short-term weakness</li><li>Negative momentum -11.4% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (75)</div>
+                  <ul><li>Moderate volatility 18.0%/yr</li><li>Max drawdown -17.6%</li><li>Beta 0.40 -- less volatile than market</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">JNJ</span>
+                <span class="score-badge" style="background:#d2992222;color:#d29922;border:1px solid #d2992266">
+                  52/100 &mdash; Hold
+                </span>
+                <span class="risk-tag">LOW-MEDIUM RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (45)</div>
+                  <ul><li>PE 26.6 -- somewhat expensive</li><li>PEG 2.91 -- paying a lot for growth</li><li>Profit margin 21.8% -- excellent</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (40)</div>
+                  <ul><li>Revenue growing 9.9%/yr -- slow</li><li>Earnings declining -- watch closely</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (50)</div>
+                  <ul><li>Price above 200-day MA -- long-term uptrend</li><li>Price below 50-day MA -- short-term weakness</li><li>Negative momentum -5.6% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (75)</div>
+                  <ul><li>Moderate volatility 16.5%/yr</li><li>Max drawdown -11.0%</li><li>Beta 0.26 -- less volatile than market</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="asset-card">
+              <div class="asset-header">
+                <span class="asset-ticker">HD</span>
+                <span class="score-badge" style="background:#ff910022;color:#ff9100;border:1px solid #ff910066">
+                  36/100 &mdash; Reduce
+                </span>
+                <span class="risk-tag">LOW-MEDIUM RISK</span>
+              </div>
+              <div class="asset-body">
+                <div class="metric-col">
+                  <div class="metric-title">Fundamentals (52)</div>
+                  <ul><li>PE 21.2 -- fairly valued</li><li>PEG 2.84 -- paying a lot for growth</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Growth (15)</div>
+                  <ul><li>Revenue declining -3.8%/yr -- concern</li><li>Earnings declining -- watch closely</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Trend (10)</div>
+                  <ul><li>Price below 200-day MA -- long-term downtrend</li><li>Price below 50-day MA -- short-term weakness</li><li>Negative momentum -22.2% last 3 months</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Risk (50)</div>
+                  <ul><li>Moderate volatility 23.2%/yr</li><li>Large max drawdown -27.9% -- high risk</li><li>Beta 1.00 -- moves with market</li></ul>
+                </div>
+                <div class="metric-col">
+                  <div class="metric-title">Sentiment (76)</div>
+                  <ul><li>Mostly positive recent headlines (10 positive / 3 negative signals)</li><li>Note: sentiment is basic keyword analysis -- not a precise signal</li></ul>
+                </div>
+              </div>
+            </div>
+  </div>
+
+  <div class="section">
+    <h2>Warnings & Alerts</h2>
+    <div style="color:#3fb950">No warnings. Portfolio looks healthy.</div>
+  </div>
+
+  <div class="section">
+    <h2>Recent Market Headlines</h2>
+    <p style="font-size:.75rem;color:#8b949e;margin-bottom:12px">
+      Sentiment is basic keyword analysis only -- not a precise signal.
+      Do not make decisions based on headlines alone.
+    </p>
+    <div class="news-item"><span class="news-source">Yahoo Finance</span> Explained: What is a perpetual DEX? A Wall Street primer featuring Decibel</div><div class="news-item"><span class="news-source">Yahoo Finance</span> IBD Stock Of The Day Nearly Doubles Profit, Trades In Buy Zone</div><div class="news-item"><span class="news-source">Yahoo Finance</span> Stock market today: Dow slides, S&P 500 and Nasdaq rise as PPI inflation data comes in hot</div><div class="news-item"><span class="news-source">Yahoo Finance</span> BlackRock Inc (BLK) Expands Tokenized Money-Market Fund</div><div class="news-item"><span class="news-source">Yahoo Finance</span> International Business Machines Corporation (IBM): Using Blockchain to Build Trust In AI</div><div class="news-item"><span class="news-source">Yahoo Finance</span> Akamai Technologies upgraded by Bank of America on AI infrastructure shift</div><div class="news-item"><span class="news-source">Yahoo Finance</span> Where Does Block Inc (XYZ) Stock Belong? Evercore Puts It at $96</div><div class="news-item"><span class="news-source">Yahoo Finance</span> After Surging 50% in Past Month, CleanSpark Inc (CLSK) Stock Rises More?</div><div class="news-item"><span class="news-source">Yahoo Finance</span> What Wisdomtree (WT) Stock Investors Should Know About the Crypto Business</div><div class="news-item"><span class="news-source">Yahoo Finance</span> JPMorgan Chase & Co (JPM): Funding AI Projects With Eyes on Blockchain</div><div class="news-item"><span class="news-source">Yahoo Finance</span> Daily Spotlight: Global Economic Outlook</div><div class="news-item"><span class="news-source">Yahoo Finance</span> Solana Price Prediction: SOL Just Posted Its Best Week of 2026, Can the Momentum Hold?</div><div class="news-item"><span class="news-source">Yahoo Finance</span> T. Rowe Price Group Inc (TROW) Expand Crypto ETF Plan</div><div class="news-item"><span class="news-source">Yahoo Finance</span> ASML Holding N.V. (ASML) Pushing for Europe Technology Leadership Amid Soaring AI Opportunities</div><div class="news-item"><span class="news-source">Yahoo Finance</span> What Could This Step Mean For PayPal Holdings Inc (PYPL) Stock?</div><div class="news-item"><span class="news-source">CNBC Markets</span> Trump arrives in Beijing with CEOs ahead of Xi meetings</div><div class="news-item"><span class="news-source">CNBC Markets</span> Wholesale inflation jumps 6% in April on annual basis, biggest increase since 2022</div><div class="news-item"><span class="news-source">CNBC Markets</span> Altman details Musk's OpenAI fallout, says nonprofit was 'left for dead'</div><div class="news-item"><span class="news-source">CNBC Markets</span> Jamie Dimon warns JPMorgan may rethink new London office if 'very smart' Starmer is ousted as UK PM</div><div class="news-item"><span class="news-source">CNBC Markets</span> Anduril doubles valuation to over $60 billion as defense tech funding boom continues</div>
+  </div>
+
+  <div class="disclaimer">
+    DISCLAIMER: This report is for educational purposes only and does not constitute financial advice.<br>
+    Past performance does not guarantee future results. Always do your own research.<br>
+    Never invest money you cannot afford to lose. Consider consulting a qualified financial advisor.
+  </div>
+</body>
+</html>

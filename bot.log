@@ -1,0 +1,27 @@
+"copilot"
+
+2026-05-13 19:48:24  INFO      =================================================================
+2026-05-13 19:48:24  INFO        PAPER BOT v3 STARTED  (multi-symbol)
+2026-05-13 19:48:24  INFO        Symbols    : BTCUSDT, SOLUSDT
+2026-05-13 19:48:24  INFO        Interval   : 4h (HTF: 1d)
+2026-05-13 19:48:24  INFO        Strategy   : AUTO  (MA in trending | Bollinger in ranging | last-used in neutral)
+2026-05-13 19:48:24  INFO        Equity/sym : 100.00 USDT  (total 200.00)
+2026-05-13 19:48:24  INFO        Risk/trade : 2.0%  ATR stop: 2.0x  R:R 3.0:1
+2026-05-13 19:48:24  INFO        Fees       : 0.10%  Slippage: 0.050%
+2026-05-13 19:48:24  INFO        F&G filter : ON  block>=75  bonus<=25
+2026-05-13 19:48:24  INFO      =================================================================
+2026-05-13 19:48:24  INFO      [F&G] Fear & Greed Index: 42 (Fear)
+2026-05-13 19:48:24  INFO        F&G:  42/100 [########------------] Fear                 -> NEUTRAL
+2026-05-13 19:48:24  INFO      =================================================================
+2026-05-13 19:48:25  INFO      [    1] BTCUSDT    Price=78827.21  ATR=791.89  Signal=  --  Strategy=BOLLINGER  Regime=neutral  HTF=bull  F&G=42(Fear)  flat
+2026-05-13 19:48:25  INFO      [    1] SOLUSDT    Price=90.43  ATR=1.75  Signal=  --  Strategy=BOLLINGER  Regime=neutral  HTF=bull  F&G=42(Fear)  flat
+2026-05-13 19:49:26  INFO      [    2] BTCUSDT    Price=78827.21  ATR=791.89  Signal=  --  Strategy=BOLLINGER  Regime=neutral  HTF=bull  F&G=42(Fear)  flat
+2026-05-13 19:49:26  INFO      [    2] SOLUSDT    Price=90.43  ATR=1.75  Signal=  --  Strategy=BOLLINGER  Regime=neutral  HTF=bull  F&G=42(Fear)  flat
+2026-05-13 19:50:27  INFO      [    3] BTCUSDT    Price=78827.21  ATR=791.89  Signal=  --  Strategy=BOLLINGER  Regime=neutral  HTF=bull  F&G=42(Fear)  flat
+2026-05-13 19:50:27  INFO      [    3] SOLUSDT    Price=90.43  ATR=1.75  Signal=  --  Strategy=BOLLINGER  Regime=neutral  HTF=bull  F&G=42(Fear)  flat
+2026-05-13 19:51:28  INFO      [    4] BTCUSDT    Price=78827.21  ATR=791.89  Signal=  --  Strategy=BOLLINGER  Regime=neutral  HTF=bull  F&G=42(Fear)  flat
+2026-05-13 19:51:28  INFO      [    4] SOLUSDT    Price=90.43  ATR=1.75  Signal=  --  Strategy=BOLLINGER  Regime=neutral  HTF=bull  F&G=42(Fear)  flat
+2026-05-13 19:52:29  INFO      [    5] BTCUSDT    Price=78827.21  ATR=791.89  Signal=  --  Strategy=BOLLINGER  Regime=neutral  HTF=bull  F&G=42(Fear)  flat
+2026-05-13 19:52:29  INFO      [    5] SOLUSDT    Price=90.43  ATR=1.75  Signal=  --  Strategy=BOLLINGER  Regime=neutral  HTF=bull  F&G=42(Fear)  flat
+2026-05-13 19:53:32  INFO      [    6] BTCUSDT    Price=78827.21  ATR=791.89  Signal=  --  Strategy=BOLLINGER  Regime=neutral  HTF=bull  F&G=42(Fear)  flat
+2026-05-13 19:53:32  INFO      [    6] SOLUSDT    Price=90.43  ATR=1.75  Signal=  --  Strategy=BOLLINGER  Regime=neutral  HTF=bull  F&G=42(Fear)  flat
