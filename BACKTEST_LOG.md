@@ -90,16 +90,26 @@ Two takeaways:
 1. **Disabling the trailing stop (`trailing_stop_enabled: False` in CONFIG) was
    the single biggest improvement found so far.** Hypothesis: the trailing stop
    is getting shaken out by normal noise before trades reach full TP, converting
-   winners into scratches. NOT YET CONFIRMED under the 2x-fees stress scenario
-   combined — that specific combination (no trail stop AND 2x fees together) was
-   queued as the next test (`test_no_trail.py` in this repo, run via
-   `_run_one_symbol` from `backtest.py` with `cfg["trailing_stop_enabled"] = False`)
-   but may not have finished before this log was written. **Check for its
-   results first — if not run yet, run it before anything else.**
+   winners into scratches.
 2. **Strategy is very sensitive to execution quality** (slippage/entry-delay
    scenarios collapse PF toward 0.3-0.5). This means the raw edge is thin
    relative to costs — tightening entry quality (fewer, better trades) may
    matter more than tweaking exits.
+
+### CONFIRMED: full readiness run with trailing stop disabled (BTCUSDT, auto, 1095d)
+This was run through the complete pipeline (OOS split, walk-forward, robustness,
+concentration, readiness check) via `_run_one_symbol` with
+`cfg["trailing_stop_enabled"] = False` — not just the single-scenario robustness
+table above. See the 2026-07-25 run-log entry at the bottom for full numbers.
+
+**Bottom line: disabling the trailing stop is a confirmed, real improvement —
+readiness score 32/100 -> 53/100 — but still NOT READY.** Validation PnL flipped
+from losing to profitable, walk-forward consistency improved to exactly the 50%
+minimum. Still blocked by: OOS test-period PF (0.72, need >1.4), trade count
+(71, need >=100), and PF at 2x fees (1.07, need >1.2 — close but not there).
+Concentration is now flagged FRAGILE (top 5 trades = 131% of profit). See the
+run-log entry for next-step ideas (stacking wider stop / limit orders / no-dyn-TP
+on top of no-trailing-stop, since each individually pushed PF well above 1.2).
 
 ## Methodology — follow this discipline
 
@@ -150,3 +160,59 @@ Repo seeded with this log and the fixes described above (walk-forward IndexError
 divide-by-zero on low-price symbols, LiveTrader kill-switch/param gaps). No new
 backtest iteration performed as part of this entry — next run should start with
 the no-trail-stop + 2x-fees combined test described above.
+
+### 2026-07-25 (manual run, same setup session — BTCUSDT, auto, trailing_stop_enabled=False)
+Ran `_run_one_symbol` directly (not the CLI) with `cfg["trailing_stop_enabled"] = False`,
+BTCUSDT, 1095 days, full robustness matrix. Full numbers:
+
+- **Whole-period**: 71 trades, 46.5% win rate, PF 1.25, expectancy +0.119, max DD 2.7%,
+  return +4.2%, Calmar 0.5.
+- **OOS split**: train PF 1.22 (+4.90), validation PF **2.30** (+5.55, now positive —
+  this was -1.64 with trailing stop enabled), test PF **0.72** (-2.02, still weak/losing).
+- **Walk-forward**: 3/6 windows profitable (50%, meets the minimum exactly), avg PF 1.52.
+  Windows 2/3/6 lost money, windows 1/4/5 won — no obvious pattern by window index alone,
+  worth checking if losing windows cluster in a specific market regime.
+- **Robustness** (scenarios below are relative to this no-trail-stop baseline, i.e.
+  "2x fees" here means "no trail stop AND 2x fees together"):
+  - 2x fees: PF 1.07 (fails the >1.2 bar, but much better than the 0.90 it was with
+    trailing stop enabled)
+  - 3x fees: PF 0.92
+  - 0.5% slippage: PF 0.63 (still the most damaging single scenario)
+  - **limit orders: PF 1.33** (flagged "SOLVES" by the tool — maker fee + conditional
+    fill clears the 2x-fee-equivalent bar on its own)
+  - **ATR_mult=2.0 (wider stop): PF 1.47**
+  - **no dyn TP: PF 1.50** (best single-lever result in this matrix)
+  - delayed entry +1 bar: PF 0.98 (execution-timing sensitivity persists)
+- **Concentration: FRAGILE.** Top 1 trade = 29.5% of profit, top 5 = **131%** of
+  profit, top 10% = 84%. 15 profitable months vs 12 losing months.
+- **Readiness verdict: 53/100, NOT READY.** Blocked by 3 critical checks:
+  - `pf_test`: OOS test PF 0.72 < 1.4 required
+  - `trade_count`: 71 < 100 required
+  - `pf_2x_fees`: 1.07 < 1.2 required
+  Passing: oos_positive, max_dd, walk_forward (exactly at the 50% line), expectancy,
+  pf_train, streak. Failing bonus check: win_rate (test period 40.0%, needs >40%
+  strictly), concentration.
+
+**Verdict: real, confirmed improvement over trailing-stop-enabled (32->53 readiness),
+but not there yet.** Three specific next steps, in priority order:
+
+1. **Stack the individually-promising levers together** on top of no-trailing-stop:
+   try `no trail stop + ATR_mult=2.0` and `no trail stop + no dyn TP` (each alone hit
+   PF 1.47-1.50) combined with the 2x-fees stress test, to see if stacking clears the
+   1.2 bar with more margin than the current 1.07. Also try `no trail stop + limit
+   orders` combined with 2x fees specifically (limit orders alone already clears 1.33,
+   worth confirming it holds under stress too).
+2. **Trade count is short (71 vs 100 minimum).** Try a longer backtest window (e.g.
+   `--days 1460`, ~4 years, if Binance has that much history for BTCUSDT) to accumulate
+   more trades without changing the strategy itself — cheapest fix to try first since
+   it requires no code change.
+3. **Cross-check on SOLUSDT and UNIUSDT** with `trailing_stop_enabled=False` before
+   concluding this generalizes — everything above is BTC-only so far. UNIUSDT in
+   particular showed PF 1.60 in the universe scan and deserves the same full-pipeline
+   treatment (OOS split / walk-forward / robustness), not just the fast scan number.
+
+If the stacked-lever test on BTC clears the pf_2x_fees bar with a reasonable margin
+(not just barely over 1.2) and the trade-count fix gets to >=100 trades, re-run the
+full readiness check — that combination could plausibly clear most/all critical
+checks. Concentration (top5=131%) will likely need separate attention (tighter entry
+filters?) even if the above works.
