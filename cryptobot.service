@@ -1,0 +1,22 @@
+[Unit]
+Description=Binance Crypto Trading Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Crypto_Stockbot
+ExecStart=/usr/bin/python3 /home/ubuntu/Crypto_Stockbot/bot.py
+Restart=on-failure
+RestartSec=30
+
+# API keys via environment variables (veiliger dan in bot.py)
+Environment=BINANCE_API_KEY=jouw_api_key_hier
+Environment=BINANCE_API_SECRET=jouw_api_secret_hier
+
+StandardOutput=append:/home/ubuntu/Crypto_Stockbot/bot.log
+StandardError=append:/home/ubuntu/Crypto_Stockbot/bot.log
+
+[Install]
+WantedBy=multi-user.target
