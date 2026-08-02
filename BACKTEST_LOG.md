@@ -336,3 +336,48 @@ routine will keep burning a cycle for nothing here every day.
 didn't add trades), then cross-check on SOLUSDT and UNIUSDT if BTC clears
 or nearly clears the readiness bar. Nothing about the strategy or CONFIG
 changed in this entry — this was a pure infra-diagnosis run.
+
+(Note: the network egress block above was fixed the same day, outside this
+environment — the GitHub App had write access sorted out, and the TP_RR=1.5
+test below was run manually via direct Binance access on a separate server,
+not through this cloud environment. Egress to Binance/Yahoo from *this*
+sandboxed environment specifically may still be unresolved — worth re-checking
+before assuming future scheduled runs here can fetch live data.)
+
+### 2026-08-02 (manual run — BTCUSDT, auto, no trailing stop + fixed TP_RR=1.5, 1095d)
+**BREAKTHROUGH: readiness score 84/100 — every critical check passes except one.**
+
+Full numbers:
+- **Whole-period**: 74 trades, 59.5% win rate, PF 1.46, expectancy +0.169, max DD 1.7%,
+  return +6.2%, Calmar 1.2.
+- **OOS split**: train PF 1.37 (+6.77), validation PF 1.71 (+3.04), test PF **1.61**
+  (+2.68). All three splits profitable with PF > 1.3 — the test/OOS period has been
+  the weak link in every prior attempt (0.72-0.74); here it's the second-best split.
+- **Walk-forward: 6/6 windows profitable (100% consistency)**, avg PF 1.58. Every
+  single window won, no exceptions — first time this has happened.
+- **Robustness**: 2x fees PF **1.22** (clears the >1.2 bar, but thin margin — worth
+  noting, not comfortable headroom), 3x fees PF 1.01 (marginal), 0.5% slippage PF 0.61
+  (still the most damaging scenario — execution-quality sensitivity persists),
+  limit orders PF 1.57 (flagged "SOLVES"), delayed entry +1 bar PF 0.86.
+- **Concentration: OK** (flipped from FRAGILE). Top 1 trade = 13.8% of profit, top 5 =
+  61.6% (barely over the 60% bonus-check line), top 10% = 50.9%. 16 profitable months
+  vs 11 losing — much healthier ratio than any prior test.
+- **Readiness: score 84/100** (clears the >=80 bar). **Only blocking failure:
+  trade_count (74 < 100)** — every other critical check (pf_test, oos_positive,
+  max_dd, pf_2x_fees, walk_forward, expectancy) passes. Only bonus check failing is
+  concentration (62% vs 60%), which isn't a blocker on its own.
+
+**This is the closest result yet, by a wide margin.** The remaining gap is a sample-size
+problem, not a strategy-quality problem — every quality signal (OOS PF, walk-forward,
+concentration, expectancy) is now solid.
+
+**Immediate next step**: extend the backtest window (try `--days 1460`, and further if
+data allows) with this exact config. Unlike the earlier stacked-lever test (wider ATR
+stop meant trades held longer, so a longer window barely added trades — 71 to 75), this
+config's tighter TP_RR=1.5 resolves trades faster, so a longer window should add
+proportionally more trades this time. If trade count clears 100 while the other metrics
+hold up, this could be genuinely READY on BTC. Then: cross-check on SOLUSDT and UNIUSDT
+before treating it as generalized rather than BTC-specific. Also keep an eye on the
+2x-fees margin (1.22 vs the 1.2 minimum is thin) and the 0.5%-slippage sensitivity —
+neither is a blocker today, but both are worth monitoring as the config gets tested
+further, since they're the two spots this result is least comfortable.
