@@ -274,3 +274,65 @@ problem with the research task itself. Not yet fixed — if you're an agent read
 this and hit the same wall (git push hangs, fails, or silently does nothing),
 that's a known issue, not something to debug further on your end. A human needs
 to check the GitHub App's permission scope in the repo settings.
+
+### 2026-08-02 (infra update — push now works; new BLOCKING issue found: Binance API unreachable)
+
+**Push issue above appears resolved, at least in this session's environment.**
+Tested directly: `git checkout -b`, edit, commit, `git push -u origin <branch>`
+completed in a few seconds and the branch showed up on GitHub (`new branch`
+confirmation from the remote, PR-creation link printed). So raw `git push` is
+not the blocker today — no need to route around it via the GitHub API tools.
+(Minor: deleting that same throwaway branch afterward via `git push origin
+--delete` got a 403 — branch *creation*/push works, deletion apparently
+doesn't have permission. Left a harmless empty branch
+`infra-test-push-<timestamp>` on the remote with one throwaway commit, no PR
+opened against it — safe to delete manually, not worth more automated effort
+chasing the delete permission.)
+
+**New, more serious blocker: this environment's network egress policy blocks
+Binance's API entirely**, which means **zero new backtests could be run this
+session** — the revised next step from the previous entry (no-trailing-stop +
+no-dynamic-tp + TP_RR=1.5 on BTCUSDT) was never executed, nor was the
+UNIUSDT/SOLUSDT cross-check.
+
+Evidence: `backtest.py`'s `Client("", "")` init (just pinging Binance) throws
+`ProxyError: ... Tunnel connection failed: 403 Forbidden` immediately. Checked
+the proxy diagnostic endpoint directly (`curl $HTTPS_PROXY/__agentproxy/status`)
+— it logs `recentRelayFailures: [{kind: "connect_rejected", detail: "gateway
+answered 403 to CONNECT (policy denial or upstream failure)", host:
+"api.binance.com:443"}]`. Tried `api.binance.com`, `api1.binance.com`,
+`data-api.binance.com`, `fapi.binance.com` directly with `curl` — all 403 at
+the CONNECT tunnel stage. For contrast, `pypi.org` and `api.github.com` both
+return 200 through the same proxy, so this isn't a general outage — it's a
+host-specific egress allowlist that simply doesn't include Binance. Per the
+proxy's own README: `403/407 = organization policy denial, do not retry or
+route around it, report the blocked host` — so this was not treated as
+something to work around (e.g. no attempt to scrape prices from elsewhere).
+
+**Also checked stock-advisory's data source for the same problem**: Yahoo
+Finance (`query1.finance.yahoo.com`, `query2.finance.yahoo.com`,
+`finance.yahoo.com`, used by `yfinance`) is **also blocked the same way**
+(403 at CONNECT). So today's stock-advisory work also can't pull live
+tickers — pivoted that repo's iteration to test coverage using synthetic
+inputs instead (see IMPROVEMENT_LOG.md), which doesn't need network access.
+
+**No local candle cache exists** in this repo (`fetch_history()` always hits
+the live API, nothing in `reports/`, `portfolio.json`, or elsewhere caches
+OHLCV data) — so there's no offline fallback for backtesting today.
+
+**Action needed from a human**: allowlist `api.binance.com` (and ideally the
+other Binance hosts above, for resilience) in this environment's egress
+policy — same ask for `query1.finance.yahoo.com` / `query2.finance.yahoo.com`
+if stock-advisory's live-data work should also run in this environment. Until
+that's done, every future firing of this routine will hit the identical wall
+on the primary crypto task — worth checking whether this is fixable in this
+session's environment settings before the next scheduled run, otherwise the
+routine will keep burning a cycle for nothing here every day.
+
+**Next step once network access is fixed**: pick up exactly where entry
+2026-08-02 (stacked-lever test) above left off — run
+`trailing_stop_enabled=False` + `dynamic_tp_by_regime=False` +
+`take_profit_rr=1.5` on BTCUSDT at 1095d (not 1460d — the longer window
+didn't add trades), then cross-check on SOLUSDT and UNIUSDT if BTC clears
+or nearly clears the readiness bar. Nothing about the strategy or CONFIG
+changed in this entry — this was a pure infra-diagnosis run.
