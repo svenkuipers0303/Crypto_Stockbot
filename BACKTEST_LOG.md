@@ -216,3 +216,61 @@ If the stacked-lever test on BTC clears the pf_2x_fees bar with a reasonable mar
 full readiness check — that combination could plausibly clear most/all critical
 checks. Concentration (top5=131%) will likely need separate attention (tighter entry
 filters?) even if the above works.
+
+### 2026-08-02 (manual run — BTCUSDT, auto, stacked: no trailing stop + no dynamic TP + ATR_mult=2.0, 1460d)
+**Result: the stacking hypothesis was WRONG. Stacking hurt more than it helped.**
+Readiness score dropped to **47/100** (vs 53/100 for no-trailing-stop alone). Full numbers:
+
+- 75 trades (barely more than the 71 at 1095d — extending the window to 4 years
+  did NOT meaningfully add trades; this strategy is inherently low-frequency in
+  this data, not window-limited. **Deprioritize "longer window" as a fix for the
+  trade-count shortfall** — it's not working.)
+- Train PF fell to **0.97** (was 1.22, now fails its own >1.2 bonus check — new
+  failure that wasn't there before)
+- OOS test PF 0.74 (basically unchanged, still fails)
+- 2x fees PF fell to **1.00** (was 1.07 with no-trailing-stop alone — stacking made
+  fee-sensitivity worse, not better)
+- Concentration got markedly worse: top 5 trades = **193%** of profit (was 131%),
+  top 1 trade = 43% (was 29.5%), best quarter = 99% of all profit. More fragile,
+  not less.
+
+**Why this makes sense in hindsight**: `no dynamic TP` reverts to CONFIG's flat
+`take_profit_rr` (2.0), it does NOT mean "no take profit" — combined with the wider
+ATR stop, trades take longer to resolve and the strategy leans harder on a handful
+of big winners to stay profitable. The three levers don't compose additively; they
+change the trade's risk/reward shape in ways that fight each other.
+
+**New lead worth chasing, found inside this run's own robustness matrix** (these
+are single-variable overrides *on top of* the stacked baseline, so read with that
+in mind — but still informative): `TP_RR=3.0` scenario hit **PF 1.43** with fewer,
+presumably higher-quality trades (70). `TP_RR=1.5` hit PF 1.27 with *more* trades
+(81 — closer to the 100 minimum, win rate 55.6%). This suggests explicitly setting
+a **fixed** `take_profit_rr` (not just disabling dynamic TP, which falls back to
+2.0) is worth testing directly, combined with no-trailing-stop but WITHOUT the
+wider ATR stop this time (since ATR_mult=2.0 didn't demonstrably help here and may
+have contributed to the concentration problem via longer average hold times).
+
+**Revised next step**: test `trailing_stop_enabled=False` + `dynamic_tp_by_regime=False`
++ `take_profit_rr=1.5` explicitly (not 2.0 default, not 3.0) on BTCUSDT at 1095d
+(revert to the shorter window — 1460d didn't help and this makes runs faster) —
+`TP_RR=1.5` had the best trade-count-vs-PF tradeoff of the two seen here. If that
+doesn't clear the bar either, `TP_RR=3.0` is the fallback to try next. Either way,
+drop the wider ATR stop from the combination — it wasn't earning its keep.
+
+Also unresolved from before: still haven't cross-checked SOLUSDT or UNIUSDT with
+any of these configs — everything so far is BTC-only. Worth doing once a BTC config
+looks genuinely promising, not before (no point cross-checking something that
+isn't working yet).
+
+### 2026-08-02 (infra note — scheduled cloud routine appears unable to push)
+The daily cloud routine (this repo + stock-advisory) has fired on schedule every
+day since 2026-07-25 (confirmed via `last_fired_at` on the trigger) but has
+produced **zero commits, branches, or PRs** on either repo in 8 days. A minimal
+diagnostic task (create a branch, write one file, commit, push — nothing else)
+also produced no branch after 10+ minutes, which is far longer than that task
+should take if it succeeded. This points to a write-permission gap on the GitHub
+App connection (it very likely has read/clone access but not push access), not a
+problem with the research task itself. Not yet fixed — if you're an agent reading
+this and hit the same wall (git push hangs, fails, or silently does nothing),
+that's a known issue, not something to debug further on your end. A human needs
+to check the GitHub App's permission scope in the repo settings.
