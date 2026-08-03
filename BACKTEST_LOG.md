@@ -382,6 +382,27 @@ before treating it as generalized rather than BTC-specific. Also keep an eye on 
 neither is a blocker today, but both are worth monitoring as the config gets tested
 further, since they're the two spots this result is least comfortable.
 
+### 2026-08-03 (infra re-check — Binance/CoinGecko still blocked in this cloud environment; no new backtest possible here)
+Re-tested egress from this sandboxed environment before starting: `api.binance.com`
+plus its mirrors (`api1`, `api2`, `api3`, `data-api`, `fapi`.binance.com) and, as an
+alternative data source, `api.coingecko.com` — **all six return 403 at the CONNECT
+tunnel stage**, identical to the 2026-08-02 finding. This is not Binance-specific,
+it's a market-data-host egress policy denial in this environment. Per the proxy's own
+README (403/407 = organization policy, do not retry or route around it), no attempt
+was made to scrape prices from elsewhere. No local OHLCV cache exists in this repo to
+fall back on, so **zero new backtests were possible this session from this
+environment**.
+
+**This is a persistent, actionable blocker, not a one-off.** Every scheduled firing
+since ~2026-07-25 that depended on this environment for live data has hit the
+identical wall. Until a human allowlists a crypto price source in this environment's
+egress policy, this repo's daily cloud iteration cannot make forward progress on new
+backtests *here* — it can only re-confirm the same block. Time was redirected to
+stock-advisory instead (see that repo's IMPROVEMENT_LOG.md). The good news: this
+doesn't block progress overall — see the entry immediately below, which answers
+exactly the question this session couldn't reach, done manually via a separate
+server with working Binance access.
+
 ### 2026-08-03 (manual run — BTCUSDT, auto, same config, 1460d instead of 1095d)
 **Extending the window is a real trade-off, not a clean win.** Trade count did climb
 to 97 (much closer to 100, confirming the "faster-cycling config adds more trades over
@@ -418,3 +439,9 @@ testing whether *pooling* evidence across symbols (rather than one symbol needin
 100 solo trades) is a more sensible readiness bar going forward — worth a discussion
 with the human before changing the bar itself, since check_live_readiness() currently
 evaluates one symbol at a time by design.
+
+**No CONFIG changes have been merged yet** — the TP_RR=1.5 config is promising (84/100
+at 1095d on BTC) but not yet cross-validated across symbols, and the 1460d attempt
+above shows it's not simply "more history = better." Per this log's own methodology
+(only merge changes confirmed on >=2 symbols), it stays untouched pending the SOL/UNI
+cross-check below.
