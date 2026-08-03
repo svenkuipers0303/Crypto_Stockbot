@@ -381,3 +381,40 @@ before treating it as generalized rather than BTC-specific. Also keep an eye on 
 2x-fees margin (1.22 vs the 1.2 minimum is thin) and the 0.5%-slippage sensitivity —
 neither is a blocker today, but both are worth monitoring as the config gets tested
 further, since they're the two spots this result is least comfortable.
+
+### 2026-08-03 (manual run — BTCUSDT, auto, same config, 1460d instead of 1095d)
+**Extending the window is a real trade-off, not a clean win.** Trade count did climb
+to 97 (much closer to 100, confirming the "faster-cycling config adds more trades over
+more history" hypothesis) — but quality degraded enough that readiness actually
+**dropped, from 84/100 to 68/100**:
+
+- PF fell to 1.20 (was 1.46). Train-split PF fell to 1.06 (was 1.37, now fails its own
+  >1.2 bonus check).
+- **2x-fees PF fell to 1.00 (was 1.22) — this critical check now fails again.**
+- Walk-forward dropped to 5/6 windows (83%, was 100%) — still clears the 50% minimum
+  comfortably, but window 1 lost money (-2.60, PF 0.73).
+- **Concentration reverted to FRAGILE**: top 5 trades = 96% of total profit, top 10% =
+  96% (was 62%/51% at 1095d). A tiny number of trades now account for almost the
+  entire result.
+- Readiness: 68/100, blocked by trade_count (97 < 100) AND pf_2x_fees (1.00 < 1.2).
+
+**Interpretation**: the extra ~13 months of history (reaching back further, likely into
+a rougher stretch — 2023-01 shows up as the best single month at 36% of total profit,
+suggesting some of the added trades are lumpy/concentrated wins in a choppier period)
+adds trade volume but appears to dilute the strategy's edge rather than confirm it.
+The 1095d window may be capturing something closer to the strategy's actual sweet
+spot rather than being merely "too short." Don't assume more history = better from
+here on; test it, don't assume it.
+
+**Revised next step — deprioritize "extend BTC's window further"**: instead, cross-check
+the ORIGINAL winning config (no trailing stop + `take_profit_rr=1.5`, **1095d, not
+1460d**) on SOLUSDT and UNIUSDT. This answers the more important open question (does
+this edge generalize beyond BTC, or is it BTC-specific) rather than continuing to
+chase BTC's own trade count into a regime that hurts quality. If either symbol
+independently produces a strong, high-readiness result at 1095d, that's stronger
+evidence for the strategy than squeezing one symbol past 100 trades at the cost of
+concentration/fee-sensitivity. If both SOL and UNI also look strong, it may be worth
+testing whether *pooling* evidence across symbols (rather than one symbol needing
+100 solo trades) is a more sensible readiness bar going forward — worth a discussion
+with the human before changing the bar itself, since check_live_readiness() currently
+evaluates one symbol at a time by design.
