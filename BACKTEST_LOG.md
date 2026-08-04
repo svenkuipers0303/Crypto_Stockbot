@@ -480,3 +480,45 @@ until that cross-check happens, per this log's own methodology. Also worth a fas
 full-pipeline run, since it's the one from the original universe scan (PF 1.60) that
 hasn't had any full-pipeline treatment yet at all — SOLUSDT has, under the *old*
 trailing-stop-enabled config, but not with this session's TP_RR=1.5 winner.
+
+### 2026-08-04 (manual run — SOLUSDT, auto, same winning config, 1095d)
+**This is the SOL cross-check named above — done manually. Real confirmation the
+edge generalizes beyond BTC.** Same config (`trailing_stop_enabled=False`,
+`dynamic_tp_by_regime=False`, `take_profit_rr=1.5`), SOLUSDT, 1095d:
+
+- 59 trades, 49.2% win rate, PF 1.28, expectancy +0.214, max DD 3.1%, return +6.3%.
+- **OOS split**: train PF 1.27, validation PF 1.21, test PF **1.42** (clears the >1.4
+  bar). All three splits profitable.
+- **Walk-forward**: 4/6 windows profitable (67%), avg PF 1.45 — clears the 50% minimum
+  comfortably.
+- **Robustness**: 2x fees PF **1.16** (fails the >1.2 bar, but closer than most BTC
+  attempts — was 0.57 with the *old* config back on 2026-07-25). 0.5% slippage PF 0.84
+  (much less damaging than BTC's 0.5-0.6 — SOL seems less execution-sensitive here).
+  Limit orders PF 1.33 (flagged SOLVES).
+- **Concentration: OK** verdict despite a flagged top-5 = 109% of profit (top 10% is a
+  healthier 45.4%, best month/quarter are moderate at 37.7%/34.8% — not as extreme as
+  the BTC 1460d blowup).
+- **Readiness: 74/100.** Blocked by the exact same two critical checks as BTC:
+  trade_count (59 < 100) and pf_2x_fees (1.16 < 1.2).
+
+**Why this matters**: this jumped from 16/100 (SOL under the original strategy,
+2026-07-25 entry) to 74/100 with the identical config that got BTC to 84/100. Two
+different assets, same config, both blocked by the *same two* things — that's a much
+stronger signal than one symbol alone. These look like structural traits of the
+approach (needs more sample size, moderately fee-sensitive) rather than one asset
+getting overfit.
+
+**Next lever to try — combine with limit orders directly, not just as a stress test**:
+in every full-pipeline run so far (BTC at 1095d and 1460d, SOL here), "limit orders"
+has been the single best-performing scenario in its own robustness matrix (BTC: 1.57
+and 1.29; SOL: 1.33) — because the maker fee is a genuine, real reduction in trading
+cost, not a synthetic stress scenario. It's never been tested as part of the *baseline*
+config alongside no-trailing-stop + TP_RR=1.5, only as an isolated add-on check. Worth
+testing `use_limit_orders=True` combined with the current winning config, on both BTC
+and SOL — if it pushes the 2x-fees-equivalent margin comfortably above 1.2 on both,
+that clears the second-most-common blocker directly with a realistic execution mode.
+The trade_count blocker (still short on both symbols) likely needs either UNIUSDT as a
+third independent data point, or a human decision on whether pooling evidence across
+symbols is an acceptable substitute for one symbol hitting 100 solo trades — flagging
+this decision for the human again since it changes what "ready" means, not just the
+config.
