@@ -595,3 +595,21 @@ preserving most of the current margin rather than eroding it further the way the
 bars, treat BTC as genuinely ready and shift full attention to confirming the same
 combination (limit orders + TP_RR=1.5 + no trailing stop) generalizes on SOLUSDT the
 same way it did without limit orders.
+
+### 2026-08-04 (manual run — BTCUSDT, auto, limit orders + 1550d — dead end, small nudges don't work)
+Tried the targeted nudge from the entry above: `--days 1550` instead of 1460.
+**Result: byte-identical to the 1460d run** — same 97 trades, same PF 1.29, same
+every single metric down to the decimal. The extra ~90 days (reaching further back
+in time) contributed **zero** new trades — a dead stretch for this strategy/symbol,
+not a source of more sample size. Small window nudges are not the right lever for
+closing the last 3-trade gap; don't keep trying `--days` values between 1460 and
+~1550, they'll likely all return the same thing.
+
+**Pivoting**: rather than guess at a bigger jump (e.g. 1825d/5y, which risks repeating
+the quality erosion seen at 1095->1460, or might hit Binance's actual history limit
+for this pair), redirected effort to the more valuable open question — does the full
+winning combination (no trailing stop + `take_profit_rr=1.5` + `use_limit_orders=True`)
+generalize to SOLUSDT the way the non-limit-orders version already did (74/100)? BTC
+is already strong evidence on its own (79-90/100 depending on window); a second
+independent symbol clearing a similar bar matters more right now than squeezing BTC's
+solo trade count past 100. See next entry for the SOL result.
