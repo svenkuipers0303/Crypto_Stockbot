@@ -613,3 +613,39 @@ generalize to SOLUSDT the way the non-limit-orders version already did (74/100)?
 is already strong evidence on its own (79-90/100 depending on window); a second
 independent symbol clearing a similar bar matters more right now than squeezing BTC's
 solo trade count past 100. See next entry for the SOL result.
+
+### 2026-08-04 (manual run — SOLUSDT, auto, full winning combo incl. limit orders, 1095d)
+**Confirms the pattern on a second independent symbol: 84/100, blocked ONLY by
+trade_count, every other critical check passes with real margin.**
+
+`trailing_stop_enabled=False` + `dynamic_tp_by_regime=False` + `take_profit_rr=1.5` +
+`use_limit_orders=True`, SOLUSDT, 1095d:
+- 59 trades, 49.2% win rate, PF 1.33, expectancy +0.248, max DD 3.1%, return +7.3%.
+- OOS split: train 1.31, validation 1.26, test **1.49** (clears >1.4). All profitable.
+- Walk-forward: 5/6 (83%), avg PF 1.51.
+- **2x maker fee PF 1.32** — real margin, not thin (mirrors BTC's improvement from
+  1.22 -> 1.55 when limit orders were added to the baseline).
+- Concentration verdict OK despite a flagged top-5=95% (per the tool's own multi-factor
+  fragility logic — top 10% is a much healthier 40%, months/quarters aren't extreme).
+- **Readiness: 84/100.** Only trade_count (59 < 100) blocks. Every other critical
+  check passes; only concentration (bonus, weight 1) fails alongside it.
+
+**Where this leaves things — a genuine decision point, not just more testing:**
+
+Two independent symbols (BTC: 79-90/100 across window sizes, SOL: 84/100), same exact
+config, same result shape: every quality/robustness check that matters (OOS PF,
+walk-forward, fee-sensitivity, drawdown, expectancy) passes comfortably on both. The
+**only** thing standing between "not ready" and "ready" on either symbol, individually,
+is raw trade count — a statistical-confidence gate, not a strategy-quality gate. BTC's
+window-extension attempts hit a dead end (1460d and 1550d were byte-identical — no new
+trades in that stretch); pushing further back risks the quality erosion seen at
+1095->1460, and there's no guarantee of finding more trades that way regardless.
+
+This isn't a call for an autonomous agent to make: whether two independent 100%-quality
+symbols each falling short on solo sample size constitutes sufficient evidence (e.g. by
+treating combined trade count across symbols as satisfying the spirit of the
+100-trade minimum, or by finding a third confirming symbol before treating the count
+requirement as effectively satisfied) is a methodology decision about what "ready"
+means, not a parameter to tune. Flagging this directly for the human rather than
+proceeding further unilaterally. If the human wants a third data point before deciding,
+UNIUSDT (full-pipeline, not yet done with this config) is the natural next candidate.
