@@ -522,3 +522,46 @@ third independent data point, or a human decision on whether pooling evidence ac
 symbols is an acceptable substitute for one symbol hitting 100 solo trades — flagging
 this decision for the human again since it changes what "ready" means, not just the
 config.
+
+### 2026-08-04 (manual run — BTCUSDT, auto, limit orders baked into the baseline, 1095d)
+**Readiness score 90/100 — every critical check passes except trade_count.** This is
+the best result yet across every quality dimension, not just a marginal improvement.
+
+Note on methodology: `_run_one_symbol()` / `simulate()` only accept `use_limit_orders`
+as an explicit function argument, NOT read from `cfg` — so this required a custom
+script (`test_tp15_limit.py`, not yet committed to the repo, ask if you want it added)
+that calls `simulate(..., use_limit_orders=True)` directly and hand-builds the
+readiness pipeline, including a custom "2x/3x maker fee" stress scenario (the built-in
+robustness matrix's "2x fees" scenario doubles the *taker* fee with limit orders OFF,
+which tests the wrong thing once limit orders are the actual baseline).
+
+Numbers: `trailing_stop_enabled=False` + `dynamic_tp_by_regime=False` +
+`take_profit_rr=1.5` + `use_limit_orders=True`, BTCUSDT, 1095d:
+
+- 74 trades, 59.5% win rate, PF **1.57** (was 1.46 without limit orders), expectancy
+  +0.203, max DD 1.6%, return +7.5%, Calmar 1.6.
+- **OOS split**: train PF 1.46, validation PF 1.86, test PF **1.76** (was 1.61 — even
+  better). All three splits comfortably above 1.4.
+- **Walk-forward: 6/6 windows profitable (100%)**, avg PF 1.71.
+- **Fee stress, done correctly this time**: 2x maker fee PF **1.55**, 3x maker fee PF
+  1.52. This is a real margin above the 1.2 minimum, not the thin 1.22 seen without
+  limit orders — the maker-fee reduction is doing real work here, not just barely
+  scraping over the line.
+- **Concentration: OK**, and now clears the *bonus* check too: top 5 trades = 53% of
+  profit (was 62%, the previous entry's only other failure besides trade_count).
+- **Readiness: 90/100.** Every critical check passes: pf_test, oos_positive, max_dd,
+  pf_2x_fees, walk_forward, expectancy. Every bonus check passes too: win_rate,
+  pf_train, streak, concentration. **The only thing blocking "ready" is trade_count
+  (74 < 100).**
+
+**This changes the calculus on extending the window.** The earlier 1460d attempt
+(2026-08-03 entry) collapsed specifically on fee-sensitivity and concentration when
+pushed to more trades — but this config now has real headroom on both (2x-fee margin
+0.35 above minimum instead of 0.02; concentration 7 points under its cap instead of
+2 over). There may be enough cushion here to absorb a rougher stretch of history
+without dropping below the bars this time. **Immediate next step**: rerun this exact
+limit-orders config at `--days 1460` on BTCUSDT. If trade count clears 100 while the
+critical checks hold (even if some margin erodes, as expected), that's a genuine
+READY verdict on BTC. Then repeat the same limit-orders combination on SOLUSDT at
+1095d and 1460d to confirm it generalizes the same way SOL did for the non-limit-order
+version.
