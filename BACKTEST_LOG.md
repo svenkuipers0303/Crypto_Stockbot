@@ -445,3 +445,38 @@ at 1095d on BTC) but not yet cross-validated across symbols, and the 1460d attem
 above shows it's not simply "more history = better." Per this log's own methodology
 (only merge changes confirmed on >=2 symbols), it stays untouched pending the SOL/UNI
 cross-check below.
+
+### 2026-08-04 (infra re-check — Binance/CoinGecko still blocked in this cloud environment; no new backtest possible here)
+Re-tested egress before starting, same method as the 2026-08-02/08-03 checks:
+`api.binance.com` and its mirrors (`api1`, `api2`, `api3`, `data-api`, `fapi`) plus
+`api.coingecko.com` — **all still return 403 at the CONNECT tunnel stage**. Confirmed
+this is a host-specific policy denial, not a general outage, using `pypi.org` (200)
+as a live control through the same proxy. No local OHLCV cache exists in this repo,
+so **zero new backtests were possible this session from this environment** — this is
+now the third consecutive scheduled firing (08-02, 08-03, 08-04) to hit the identical
+wall. The next concrete step from the 2026-08-03 entry (cross-check the winning
+no-trailing-stop + `take_profit_rr=1.5` config on SOLUSDT and UNIUSDT at 1095d) is
+**still not executed** — it requires either (a) this environment's egress policy to
+allowlist a crypto price host, or (b) another manual run via a separate server with
+working Binance access, same as how the 84/100 BTC breakthrough and the 1460d
+trade-off finding were both actually produced.
+
+**This has now been a 3-day blocker with zero forward progress possible from this
+specific cloud environment.** Time was redirected to stock-advisory this session
+instead (opened PR #3 there — 58 new unit tests for the scoring engine, using
+synthetic inputs since Yahoo Finance is blocked the same way). Flagging this clearly
+since it's now a pattern, not a one-off: **a human should check whether this
+environment's egress allowlist can include a crypto price API** (`api.binance.com`
+or `api.coingecko.com`), or else this routine's crypto-side iteration will keep
+needing to happen manually off-environment, with this cloud session only able to
+re-confirm the block and redirect effort to stock-advisory.
+
+**Next step once network access is fixed (here or manually elsewhere)**: exactly the
+cross-check named in the 2026-08-03 entry — `trailing_stop_enabled=False` +
+`take_profit_rr=1.5` (1095d, NOT 1460d) on SOLUSDT and UNIUSDT, compared against the
+BTC baseline (84/100, 74 trades, 2x-fees PF 1.22). No CONFIG changes should be merged
+until that cross-check happens, per this log's own methodology. Also worth a fast
+`--no-robustness` universe-scan-style sanity check on UNIUSDT specifically before the
+full-pipeline run, since it's the one from the original universe scan (PF 1.60) that
+hasn't had any full-pipeline treatment yet at all — SOLUSDT has, under the *old*
+trailing-stop-enabled config, but not with this session's TP_RR=1.5 winner.
