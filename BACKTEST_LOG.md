@@ -649,3 +649,32 @@ requirement as effectively satisfied) is a methodology decision about what "read
 means, not a parameter to tune. Flagging this directly for the human rather than
 proceeding further unilaterally. If the human wants a third data point before deciding,
 UNIUSDT (full-pipeline, not yet done with this config) is the natural next candidate.
+
+### 2026-08-04 (manual run — UNIUSDT, auto, same full winning combo, 1095d — breaks the pattern)
+**UNIUSDT does NOT confirm the pattern — this is a real quality failure, not just a
+sample-size shortfall.** Readiness **32/100**. PF 0.81 (net losing), negative
+expectancy (-0.174), walk-forward only 33% (2/6 windows), 5 of 7 critical checks fail
+(pf_test, trade_count, pf_2x_fees, walk_forward, expectancy). Train-split PF 0.59 —
+the strategy loses money on UNIUSDT even in-sample. This is a materially different
+result from BTC/SOL, not a smaller version of the same success.
+
+**Important context that changes how much this should worry us**: `bot.py`'s
+`CONFIG["symbols"] = ["BTCUSDT", "SOLUSDT"]` — **UNIUSDT was never part of the bot's
+actual trading universe.** It was only a research candidate flagged by the earlier
+fast universe scan (which ran under the *old*, trailing-stop-enabled config, not this
+session's winning combo). So this isn't "the edge failed on a symbol the bot needs to
+trade" — it's "the edge doesn't generalize to an arbitrary altcoin outside the bot's
+configured universe," which is a meaningfully different and less concerning finding.
+The two symbols that actually matter for a live decision (BTC, SOL — the only two
+`bot.py` is configured to trade) are exactly the two that both cleared everything but
+trade count.
+
+**Revised framing for the human decision point above**: the question isn't "does this
+edge generalize to crypto broadly" (evidently: no) — it's "does it work on the specific
+two assets this bot trades" (evidently: yes, consistently, on both, modulo trade
+count). That's a narrower and more answerable question. Whether that's sufficient to
+treat BTC+SOL as ready — or whether a stricter statistical bar is still warranted
+given the edge is clearly asset-specific rather than universal — remains the human's
+call, but the UNIUSDT result is a data point *for* caution on breadth (don't assume
+this config would work if more symbols were ever added to `CONFIG["symbols"]`) rather
+than a data point against readiness on BTC/SOL specifically.
