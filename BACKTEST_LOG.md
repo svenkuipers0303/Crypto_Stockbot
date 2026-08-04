@@ -565,3 +565,33 @@ critical checks hold (even if some margin erodes, as expected), that's a genuine
 READY verdict on BTC. Then repeat the same limit-orders combination on SOLUSDT at
 1095d and 1460d to confirm it generalizes the same way SOL did for the non-limit-order
 version.
+
+### 2026-08-04 (manual run — BTCUSDT, auto, limit orders + 1460d — extremely close to READY)
+**Score 79/100, literally one point under the 80 threshold, and the ONLY critical
+check still failing is trade_count (97 vs 100 — just 3 trades short).**
+
+Unlike the earlier non-limit-orders 1460d attempt (which lost the pf_2x_fees check
+entirely, dropping to 68/100), this version's fee-margin **held up**: 2x maker fee
+PF **1.27** (was 1.55 at 1095d — margin eroded but didn't break). All critical checks
+pass except trade_count:
+- OOS test PF 1.59 (>1.4 ✓), validation +4.47 (✓), max DD 0.8% (✓), 2x fees 1.27 (✓),
+  walk-forward 83%/5-of-6 (✓), expectancy +0.116 (✓).
+- Two bonus checks now fail (train PF 1.13 < 1.2; concentration top5=70% > 60% cap),
+  costing 2 points each toward the score — but neither is a *blocker* on its own
+  (`blocked_by` only lists checks with weight >= 2; these are weight 1).
+
+**Math worth spelling out**: if trade_count alone flips to passing (>=100 trades),
+`blocked_by` becomes empty and the score recalculates to roughly 89-90/100 (both
+critical-check weight and the two now-newly-available points from trade_count itself)
+— comfortably clearing both the "no blockers" and "score >= 80" requirements for
+`ready=True`. **Getting ~3-5 more trades, without losing the current fee-margin
+cushion, is plausibly the single remaining step to a genuine READY verdict on BTC.**
+
+**Next step**: a small, targeted window nudge rather than another big jump — try
+`--days 1500` or `1550` (not 1825/5y) to add a handful more trades while staying as
+close as possible to the 1095d period's favorable characteristics, hopefully
+preserving most of the current margin rather than eroding it further the way the full
+365-day jump (1095->1460) did. If this clears trade_count and stays above the other
+bars, treat BTC as genuinely ready and shift full attention to confirming the same
+combination (limit orders + TP_RR=1.5 + no trailing stop) generalizes on SOLUSDT the
+same way it did without limit orders.
