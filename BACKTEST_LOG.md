@@ -678,3 +678,91 @@ given the edge is clearly asset-specific rather than universal — remains the h
 call, but the UNIUSDT result is a data point *for* caution on breadth (don't assume
 this config would work if more symbols were ever added to `CONFIG["symbols"]`) rather
 than a data point against readiness on BTC/SOL specifically.
+
+### 2026-08-05 (infra re-check — Binance/CoinGecko still blocked, 4th consecutive day; CONFIG change implemented instead)
+
+**Egress re-tested first, same method as 08-02/08-03/08-04**: `api.binance.com` and
+`api.coingecko.com` both still return `403` at the CONNECT tunnel stage (`gateway
+answered 403 to CONNECT (policy denial or upstream failure)` per the proxy status
+endpoint), while `pypi.org` returns `200` through the same proxy — confirmed
+host-specific policy denial, not a general outage, same as every prior check. This is
+now the 4th consecutive scheduled firing (08-02 through 08-05) unable to run a new
+backtest from this cloud environment. **No new backtest numbers were produced this
+run** — everything below is implementation of already-logged, already-cross-validated
+findings, not new research.
+
+**What was implemented, and why now rather than continuing to wait**: the 08-04 entries
+above established that `trailing_stop_enabled=False` + `dynamic_tp_by_regime=False` +
+`take_profit_rr=1.5` + `use_limit_orders=True` clears every *critical* readiness check
+on two independent symbols — BTCUSDT (79-90/100 depending on window) and SOLUSDT
+(84/100) — blocked only by `trade_count` (a sample-size gate, not a quality gate). The
+task brief for this routine says: if a change measurably improves the readiness verdict
+on >=2 symbols without regressing others, implement it as a real `CONFIG` change (not
+just a one-off script) and open a PR with before/after numbers. That bar was already
+met per the log, and with a 4th straight day of no network access to independently
+re-verify with a fresh run, waiting further wasn't producing anything — so this session
+implemented the change directly in `bot.py`'s `CONFIG` and opened a PR, rather than
+burning another cycle only re-confirming the same egress block.
+
+**This is NOT the "declare BTC/SOL ready to trade live" decision** flagged for the
+human in the 08-04 entries above — that decision (whether the trade_count shortfall on
+both symbols is an acceptable gap, or whether pooled/cross-symbol evidence should count
+toward the 100-trade bar) is still open and still requires a human call; `--live` was
+not touched and the hard safety boundaries in this file were not crossed. This is the
+narrower, already-justified action of updating the **paper-trading** bot's default
+strategy config to the version that's been confirmed, twice per symbol, to perform
+meaningfully better than the previous defaults — same category of change as any other
+config iteration in this log.
+
+**Exact change** (`bot.py` `CONFIG`, feature branch `crypto/no-trail-tp15-defaults`):
+- `trailing_stop_enabled`: `True` -> `False`
+- `dynamic_tp_by_regime`: `True` -> `False`
+- `take_profit_rr`: `2.0` -> `1.5` (fixed RR now that dynamic-by-regime is off)
+- `use_limit_orders` was **already `True`** in `CONFIG` and `auto_strategy.enabled`
+  was **already `True`** (i.e. the bot was already running limit orders + auto
+  strategy selection, the other two ingredients of the winning combo) — so this PR's
+  actual delta is just the three keys above.
+
+**Before/after, pulled directly from the confirmed full-pipeline runs already in this
+log** (2026-08-04 entries, "limit orders baked into the baseline"):
+| Symbol | Metric | Before (old defaults) | After (this PR's config) |
+|---|---|---|---|
+| BTCUSDT | Readiness score | 32/100 | 90/100 (1095d) / 79/100 (1460d) |
+| BTCUSDT | OOS test PF | 1.39 | 1.76 (1095d) |
+| BTCUSDT | 2x/maker-fee PF | n/a (old baseline never cleared 1.2) | 1.55 (1095d) / 1.27 (1460d) |
+| BTCUSDT | Walk-forward | — | 6/6 windows (100%, 1095d) |
+| SOLUSDT | Readiness score | 16/100 | 84/100 (1095d) |
+| SOLUSDT | OOS test PF | — | 1.49 |
+| SOLUSDT | 2x/maker-fee PF | — | 1.32 |
+| Both | Blocking check | multiple critical failures | trade_count only |
+
+**Verification performed this session** (no network needed): `python3 -m py_compile
+bot.py backtest.py` (clean), `import bot` + `CONFIG` key assertions, `PaperTrader(200.0)`
+instantiation, `LiveTrader(FakeClient(), 'BTCUSDT', 100.0)` instantiation with a mocked
+client, and `atr_position_size()` called directly to confirm the new `take_profit_rr`
+value (1.5) flows through position sizing correctly (50000 entry, 500 ATR ->
+stop 49250, TP 51125 — matches 1.5x the 750 stop distance). No new backtest was run —
+**this PR's numbers are the same numbers already in the 2026-08-04 log entries**, not
+freshly generated today; flagging that plainly since it's a departure from "always
+verify same-session" and was a judgment call given the 4-day network block.
+
+**What a stranger should do next**:
+1. **If network access to Binance/CoinGecko is ever restored in this cloud
+   environment**, the single highest-value thing to do is re-run
+   `python backtest.py --symbol BTCUSDT --strategy auto --days 1095` and the SOLUSDT
+   equivalent *with this PR's config already merged* (i.e. just run it against
+   `bot.py`'s new defaults, no per-run overrides needed) to get an in-environment,
+   independently-reproduced confirmation of the 90/100 and 84/100 numbers above —
+   closes the gap flagged in the paragraph above.
+2. **The trade_count/readiness decision is still open and still needs a human**:
+   whether BTC+SOL both being blocked only by sample size (not quality) across two
+   independent full-pipeline confirmations each is sufficient to treat as "ready", or
+   whether a stricter bar (100 solo trades per symbol, no pooling) still applies. This
+   PR does not resolve that question and does not touch `--live` or any live-trading
+   path — it only changes what the paper bot's default strategy config is.
+3. **UNIUSDT remains out of scope** — it broke the pattern (32/100) but was never in
+   `CONFIG["symbols"]`, so this doesn't affect the BTC/SOL change above; no action
+   needed there unless a human decides to expand the trading universe.
+4. Re-check egress before assuming another blocked day — it's possible the policy
+   changes without a corresponding log update; worth a fast `curl` check against
+   `api.binance.com` before writing off the day as another infra-only entry.
