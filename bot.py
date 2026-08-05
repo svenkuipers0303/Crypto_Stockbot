@@ -59,7 +59,7 @@ CONFIG = {
     "risk_per_trade_pct":    1.0,  # % of per-symbol equity to risk
     "max_position_pct":     20.0,
     "atr_stop_multiplier":   1.5,
-    "take_profit_rr":        2.0,
+    "take_profit_rr":        1.5,  # fixed RR now that dynamic_tp_by_regime is off (was 2.0)
 
     # ── Signal score gate ─────────────────────────────────────
     "score_threshold": 70,         # min score (0-100) required to trade
@@ -155,14 +155,19 @@ CONFIG = {
     },
 
     # ── Exit improvements ─────────────────────────────────────
-    "trailing_stop_enabled": True,
+    # trailing_stop_enabled=False + dynamic_tp_by_regime=False + take_profit_rr=1.5
+    # (fixed) confirmed via full-pipeline backtests (OOS split, walk-forward,
+    # robustness, concentration) on both BTCUSDT and SOLUSDT — see BACKTEST_LOG.md
+    # 2026-08-04 entries. Readiness score 32->90 (BTC) and 16->84 (SOL); every
+    # critical check passes on both symbols except trade_count (sample size).
+    "trailing_stop_enabled": False,
     "breakeven_at_atr_mult": 1.0,   # move stop to breakeven when trade is up 1×ATR
     "trail_from_atr_mult":   2.0,   # start trailing when trade is up 2×ATR
     "trail_stop_atr_mult":   1.0,   # trail by 1×ATR below the peak
     "time_stop_bars":        48,    # exit after 48 × 4H bars (8 days) if no TP/SL
-    "dynamic_tp_by_regime":  True,
-    "tp_rr_trending":        3.0,   # let winners run in trending regimes
-    "tp_rr_ranging":         1.5,   # take profit earlier in ranging regimes
+    "dynamic_tp_by_regime":  False,
+    "tp_rr_trending":        3.0,   # let winners run in trending regimes (unused while dynamic_tp_by_regime=False)
+    "tp_rr_ranging":         1.5,   # take profit earlier in ranging regimes (unused while dynamic_tp_by_regime=False)
 
     # ── Dynamic risk modes ─────────────────────────────────
     # Risk per trade scales with setup quality and market conditions.
