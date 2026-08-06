@@ -766,3 +766,124 @@ verify same-session" and was a judgment call given the 4-day network block.
 4. Re-check egress before assuming another blocked day — it's possible the policy
    changes without a corresponding log update; worth a fast `curl` check against
    `api.binance.com` before writing off the day as another infra-only entry.
+
+### 2026-08-06 (infra re-check — still blocked, 5th consecutive day; real bug found and fixed in backtest.py instead of a new backtest)
+
+**Egress re-tested first, same method as every prior day**: `api.binance.com` and
+`api.coingecko.com` both still return `403` at the CONNECT tunnel stage
+(`gateway answered 403 to CONNECT (policy denial or upstream failure)`), `pypi.org`
+still returns `200` through the same proxy. `query1/query2.finance.yahoo.com` (used
+by stock-advisory) are blocked the same way. This is now the 5th consecutive
+scheduled firing (08-02 through 08-06) unable to fetch live data from this cloud
+environment. **No new backtest numbers were produced this run** — cannot run
+`python backtest.py --symbol ... --days ...` without Binance access, same as every
+day this week.
+
+**Instead of re-logging the identical infra note a 5th time, spent the session on
+something concrete and verifiable without network access**: read `backtest.py`
+closely while looking for why the 2026-08-04 entries needed a hand-rolled custom
+script (`test_tp15_limit.py`, never committed) to get the 90/100 BTC / 84/100 SOL
+numbers, instead of the plain CLI. Found the reason, and it's a real bug, not just
+an inconvenience:
+
+**Bug: `_run_one_symbol()`'s baseline `simulate()` call, and every scenario in
+`run_robustness_tests()`'s fee matrix except the dedicated `"limit orders"` row,
+never read `cfg["use_limit_orders"]` — they always defaulted to `False`
+(market/taker orders).** This was true even *before* PR #1 merged
+`"use_limit_orders": True` into `bot.py`'s `CONFIG` on 08-05. Since PR #1 merged,
+every metric `check_live_readiness()` actually grades from a plain CLI run — whole-
+period PF, the OOS split, walk-forward, concentration, and critically the
+`pf_2x_fees` check (`robustness["2x fees"]["profit_factor"]`) — was silently being
+computed with the bot's *old* execution mode, contradicting `CONFIG`'s own current
+default. The only way to get numbers matching what the paper bot actually does live
+was the never-committed custom script from 08-04. In other words: **the readiness
+tool and the thing it's supposed to be grading had quietly drifted apart the moment
+PR #1 merged**, and nothing in the pipeline would have caught it because
+`check_live_readiness()` has no way to know its own robustness matrix used the wrong
+execution mode.
+
+**Fix, in `backtest.py` only** (`bot.py` untouched, no CONFIG/strategy change):
+1. `_run_one_symbol()`'s baseline `simulate()` call now passes
+   `use_limit_orders=cfg.get("use_limit_orders", False)` instead of omitting the
+   argument (which defaulted to `False`).
+2. `run_risk_model_research()`'s `simulate()` call gets the same fix, for
+   consistency (not on the `check_live_readiness()` critical path, but was the same
+   class of bug).
+3. `run_robustness_tests()`'s `fee_scenarios` dict: the per-scenario
+   `use_limit_orders` flag is now `None` (meaning "inherit `base_cfg`'s own
+   `use_limit_orders`") for every scenario except `"limit orders"`, which still
+   forces it on (so "what if I turned limit orders on" stays answerable even when
+   the baseline doesn't already use them). `"2x fees"` / `"3x fees"` now also double
+   `maker_fee_pct`, not just `fee_pct` — needed because entries under limit orders
+   are charged `maker_fee_pct`, not `fee_pct` (exits are always charged `fee_pct`
+   regardless of entry mode, that part was already correct and untouched).
+
+**This is a backward-compatible correctness fix, not a behavior change for anyone
+still on `use_limit_orders=False`** — verified directly (see below): when
+`base_cfg["use_limit_orders"]` is `False`, every scenario's effective flag resolves
+to exactly the same `False` it always was, byte-for-byte the same fee-matrix
+semantics as before. The only thing that changed is that the matrix now actually
+reads `cfg` instead of ignoring it.
+
+**Verification performed this session (all offline, no Binance/network needed)**:
+- `python3 -m py_compile bot.py backtest.py` — clean.
+- Synthetic-OHLCV smoke test (random-walk 4H + 1D candles, no live data): called
+  `simulate(df_4h, df_1d, "auto", cfg, fg_val=50, use_limit_orders=cfg.get(...))`
+  — the exact call now used by `_run_one_symbol()` — and confirmed its trade list is
+  identical (same entry prices, same count) to calling `simulate(..., use_limit_orders=True)`
+  explicitly, confirming the cfg value now actually flows through.
+- Deterministic logic check of the `fee_scenarios` inherit-sentinel (no simulate()
+  call needed, so no timeout risk): built the dict with both
+  `base_cfg["use_limit_orders"] = True` and `= False` and printed each scenario's
+  resolved effective flag. With `True` (current `CONFIG`): `baseline`, `2x fees`, and
+  `limit orders` all resolve to `True` (correctly unified). With `False` (old-style
+  config): `baseline`/`2x fees` resolve to `False`, `limit orders` still forces
+  `True` — exactly matching the pre-fix behavior, confirming backward compatibility.
+- `python3 -c "import bot; ... PaperTrader(200.0); LiveTrader(FakeClient(), 'BTCUSDT', 100.0)"`
+  — both still instantiate cleanly (this session didn't touch `bot.py`, but re-ran
+  the standard mocked-client smoke test per this log's safety rules anyway, since it's
+  cheap and `backtest.py` imports directly from `bot.py`).
+- Full offline run of `run_robustness_tests()` itself (not just the logic check) on
+  a smaller synthetic dataset (n=800 candles, 74.5s wall time — the full matrix is
+  slow; a 2000-candle version timed out at 120s, so kept it smaller for iteration
+  speed) produced 0 trades on that particular random seed (too little signal density
+  for `auto` strategy to fire on synthetic noise) but still confirmed
+  `robust["baseline"]["trades"] == robust["limit orders"]["trades"]` structurally —
+  the real signal is the logic check above, this was a secondary sanity pass.
+
+**What this means for every number already in this log**: the 84/90/79-point BTC
+and SOL results from the 08-04 entries are **not invalidated** — they were produced
+correctly via the custom script that manually passed `use_limit_orders=True`. What
+changes is that **those same numbers should now be reproducible from the plain CLI**
+(`python backtest.py --symbol BTCUSDT --strategy auto --days 1095`, no custom script,
+no per-run overrides) since `CONFIG` already has `use_limit_orders=True` merged and
+`backtest.py` now actually reads it. This has **not been confirmed in-environment
+yet** — still blocked on Binance access — so treat it as "should reproduce ~90/100
+BTC / ~84/100 SOL" until someone with working Binance access actually runs the plain
+CLI command and checks.
+
+**Not touched**: `bot.py`, `CONFIG`, live/paper trading behavior, the trade_count/
+pooling human-decision question from 08-04, UNIUSDT's out-of-scope status. This is
+purely a fix to the backtest measurement tool so it accurately grades what `CONFIG`
+already says the bot does.
+
+**Next step for tomorrow**:
+1. **Re-check egress first** (same fast `curl` check as always) — if Binance is ever
+   reachable, the single highest-value thing to do is run the plain CLI command
+   (`python backtest.py --symbol BTCUSDT --strategy auto --days 1095`, then the
+   SOLUSDT equivalent) and confirm it now reproduces ~90/100 BTC / ~84/100 SOL
+   *without* any custom script — that closes the loop this entry opened and gives a
+   real, fresh, in-environment confirmation number instead of numbers computed via a
+   script that was never committed.
+2. If it reproduces those numbers (or close to them), this fix + PR is safe to treat
+   as done and future robustness-matrix numbers in this log can be trusted at face
+   value again. If it *doesn't* roughly reproduce them, that's actually an important
+   finding too — would mean the discrepancy was something else, not just this bug,
+   and is worth its own entry.
+3. The trade_count/pooling decision (BTC + SOL both blocked only by sample size
+   across two independent confirmations) is still open and still needs a human — see
+   the 08-04 entries. Nothing in this entry resolves it.
+4. If UNIUSDT or any other symbol is ever tested again, this fix means its
+   `pf_2x_fees` / robustness numbers will now correctly reflect `CONFIG`'s execution
+   mode too, for whatever that's worth given UNIUSDT already broke the pattern on
+   quality grounds (32/100), not fee-sensitivity.
