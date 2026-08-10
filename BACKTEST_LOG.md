@@ -766,3 +766,56 @@ verify same-session" and was a judgment call given the 4-day network block.
 4. Re-check egress before assuming another blocked day — it's possible the policy
    changes without a corresponding log update; worth a fast `curl` check against
    `api.binance.com` before writing off the day as another infra-only entry.
+
+### 2026-08-10 (infra re-check — egress still blocked; confirmed category-wide, not host-specific; no new backtest possible)
+
+**No scheduled entries appear in this log between 2026-08-05 and today** (5 calendar
+days) — unclear whether the routine didn't fire, fired without reaching the logging
+step, or fired and hit the network block early enough that a session ended without
+writing an entry. Flagging the gap for a human to check the trigger's run history;
+not something this session can diagnose from inside the repo.
+
+**Egress re-tested, same method as every prior infra entry, plus one extra step**:
+`api.binance.com` and `api.coingecko.com` both still return `403` at the CONNECT
+tunnel stage (`gateway answered 403 to CONNECT (policy denial or upstream failure)`,
+confirmed via `$HTTPS_PROXY/__agentproxy/status`'s `recentRelayFailures`), while
+`pypi.org` returns `200` through the same proxy — identical pattern to every check
+since 2026-08-02.
+
+**New this session: checked three more exchange APIs never tried before** —
+`api.kraken.com`, `api.exchange.coinbase.com`, `api.bybit.com` — **all three also
+403 at the CONNECT stage**, same failure mode as Binance/CoinGecko. This is useful
+new information: the block is not specific to Binance or even to "the two hosts
+this bot happens to use" — it looks like a **category-wide policy denial on
+market-data/exchange hosts** in this environment, not a narrow allowlist gap on one
+or two domains. Worth relaying that framing to whoever owns the egress policy, since
+"allowlist api.binance.com" may not be the right fix if the policy is categorical —
+it might need a deliberate exception for this environment's use case instead.
+
+**Also confirmed no local fallback exists**: `bot.py`/`backtest.py` have no offline
+mode, no CSV/cache loading path — `fetch_history()` always calls `client.get_klines()`
+live. Nothing changed here since the 2026-08-02 check that first established this.
+
+**No new backtest was possible this session.** No CONFIG or code changes were made —
+the no-trailing-stop + `take_profit_rr=1.5` + `use_limit_orders=True` combo from PR #1
+(merged 2026-08-05) remains `bot.py`'s default and is unchanged. The in-environment
+reproduction of the 90/100 (BTC) / 84/100 (SOL) numbers, and the still-open
+trade_count/readiness human decision, both remain exactly where the 2026-08-05 entry
+left them — nothing to add on either without live data.
+
+**What a stranger should do next**:
+1. Check whether this routine's trigger actually fired daily between 08-06 and
+   08-09 (`list_triggers` / run history) — if it did and produced no log entries,
+   something upstream of "write the log entry" may be failing silently and deserves
+   its own investigation, separate from the egress block.
+2. If egress is ever opened, prioritize exactly step 1 from the 2026-08-05 entry:
+   reproduce the 90/100 (BTC, 1095d) and 84/100 (SOL, 1095d) readiness numbers
+   in-environment against `bot.py`'s current (already-merged) defaults, with no
+   per-run overrides needed.
+3. The trade_count/ready-to-recommend-live decision is still open and still needs a
+   human — see the 2026-08-04/08-05 entries for the full framing. Nothing this
+   session adds to that.
+4. If a human is deciding whether to widen the egress allowlist, pass along that the
+   block looks categorical (5/5 exchange APIs tested so far are blocked the same way),
+   not a simple missing-domain gap — may need a different kind of policy change than
+   "add api.binance.com to the allowlist."
