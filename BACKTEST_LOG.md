@@ -819,3 +819,58 @@ left them — nothing to add on either without live data.
    block looks categorical (5/5 exchange APIs tested so far are blocked the same way),
    not a simple missing-domain gap — may need a different kind of policy change than
    "add api.binance.com to the allowlist."
+
+### 2026-08-11 (infra re-check — egress still blocked, 6th check since 08-02; found and reviewed an unmerged bug-fix PR; time redirected to stock-advisory)
+
+**Egress re-tested, same method as every prior check**: `api.binance.com`,
+`api.coingecko.com`, `api.kraken.com`, `api.exchange.coinbase.com`, and
+`api.bybit.com` all still `403` at the CONNECT tunnel stage; `pypi.org` returns
+`200` through the same proxy as a control. Identical pattern to every check since
+2026-08-02 — no change in the block. `fetch_history()` still has no offline/cache
+fallback (re-confirmed by reading it again), so no new backtest was possible.
+
+**`list_pull_requests` checked before starting** (this repo's own hard-won lesson,
+first learned in the sibling stock-advisory repo's log): **PR #2** ("Fix
+backtest.py: baseline/robustness sim never read cfg['use_limit_orders']"), opened
+2026-08-06, is still open and unreviewed — 5 days now. Read it in full: it's a
+real, well-verified fix (the plain `python backtest.py --symbol ... --days ...`
+CLI path never passed `use_limit_orders` through to `simulate()`/
+`run_robustness_tests()`, so a stranger running the ordinary CLI command against
+current `main` would *not* reproduce the 90/100 BTC / 84/100 SOL numbers already
+in this log — those numbers came from a hand-rolled script that explicitly passed
+`use_limit_orders=True`, not the documented CLI invocation). Confirmed the bug is
+still live on `main` by grepping `simulate(` call sites in `backtest.py` — two of
+three call sites still omit `use_limit_orders`, matching the PR's diagnosis
+exactly. **Did not merge it** — this file's own "Hard safety boundaries" section
+says a human reviews and merges PRs, and PR #2 has zero review comments so far, so
+it's correctly just waiting. Flagging it here mainly so tomorrow's session doesn't
+re-discover the same bug from scratch, and so a human sees it's been sitting
+unreviewed for a while.
+
+**No CONFIG or code changes made this session** — nothing to test-and-compare
+without live data, and the one available offline lever (reviewing PR #2) doesn't
+call for a code change of its own, just a merge decision that isn't this session's
+to make.
+
+**Time redirected to stock-advisory** (secondary task) per the routine's own
+instructions once egress-blocked work is exhausted: added 37-test coverage for
+`InvestmentBriefEngine` there (opened as PR #7). See that repo's
+`IMPROVEMENT_LOG.md` for details — noted there for completeness, not duplicated
+here since it's out of this file's scope.
+
+**What a stranger should do next**:
+1. **Highest priority: get a human to look at PR #2.** It's a correctness fix for
+   the measurement tool itself (not `bot.py`, not live trading) and has been open
+   5 days with zero review activity. Until it merges, the documented CLI command in
+   this file's own "Goal" section (`python backtest.py --symbol SYMBOL --strategy
+   STRAT --days 1095`) will silently grade the wrong execution mode for anyone who
+   runs it fresh against current `main`.
+2. If egress is ever restored, re-run BTC/SOL at 1095d against `main` **after PR #2
+   merges** (not before) — running it pre-merge would just reproduce the same
+   silent-wrong-execution-mode bug the PR describes, wasting a rare egress window
+   on a number that doesn't reflect what `CONFIG` actually says the bot does.
+3. The trade_count/readiness human decision (2026-08-04/05 entries) is still open
+   and still unaddressed by anything this session did.
+4. UNIUSDT full run (from this task's own seed instructions) still hasn't happened
+   — blocked by the same egress wall as everything else, not deprioritized on
+   purpose. First in line once egress opens, after the PR #2 re-run above.
