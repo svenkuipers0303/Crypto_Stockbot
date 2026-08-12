@@ -874,3 +874,66 @@ here since it's out of this file's scope.
 4. UNIUSDT full run (from this task's own seed instructions) still hasn't happened
    — blocked by the same egress wall as everything else, not deprioritized on
    purpose. First in line once egress opens, after the PR #2 re-run above.
+
+### 2026-08-12 (infra re-check — egress still blocked, 7th check since 08-02; PR #2 now 6 days unreviewed)
+
+**Egress re-tested, same method as every prior check**: `api.binance.com`,
+`api.coingecko.com`, `api.kraken.com` all still `403` at the CONNECT tunnel
+stage (`gateway answered 403 to CONNECT (policy denial or upstream failure)`
+per `$HTTPS_PROXY/__agentproxy/status`), `pypi.org` still `200` through the
+same proxy as a control. Identical pattern to every check since 2026-08-02 —
+this is now the 7th consecutive scheduled firing unable to reach a crypto
+price host from this environment. `fetch_history()` still has no offline
+cache fallback. **No new backtest was possible this session.** The
+outstanding tasks — TP_RR=1.5 + no-trailing-stop + 2x-fees combined
+confirmation on BTC/SOL, and the full-pipeline UNIUSDT run named in this
+routine's own seed instructions — remain blocked exactly where the 08-11
+entry left them.
+
+**`list_pull_requests` checked before starting.** **PR #2** ("Fix
+backtest.py: baseline/robustness sim never read cfg['use_limit_orders']"),
+opened 2026-08-06, is **still open with zero review activity — now 6 days
+old.** Re-read the diff: it's still a clean, well-verified, backward-compatible
+fix scoped entirely to `backtest.py`'s measurement code (no `bot.py`/`CONFIG`
+changes), and it's still correctly not this session's call to merge per this
+file's own safety rules. Not re-verifying it again today beyond confirming it's
+unchanged and still applies cleanly against current `main` — re-doing the same
+diagnosis a third time without new information wouldn't add anything.
+
+**No CONFIG or code changes made this session** — nothing to test-and-compare
+without live data, and PR #2 doesn't need further action from this session,
+just a human merge decision.
+
+**Time redirected to stock-advisory** (secondary task): added integration test
+coverage for `StockAdvisor.analyze_all()` (per-ticker fetcher-exception
+fallback behavior, previously unverified) and `ReportGenerator.generate_html()`
+using a mocked `DataFetcher` — the one remaining item on that repo's original
+test-coverage checklist. Opened as PR #8. While there, found that repo now
+also has **three** open, unreviewed test-only PRs (#5, #6, #7 — oldest, #5,
+is also 6 days old) stacking up the same way PR #2 is here. See
+`stock-advisory/IMPROVEMENT_LOG.md`'s 2026-08-12 entry for full detail.
+
+**Worth stating plainly since it's now a two-repo pattern, not a one-off**:
+across both repos there are currently **4 open PRs with zero review activity**
+(this repo's #2, stock-advisory's #5/#6/#7), two of which are 6 days old. All
+are safe, well-verified, non-conflicting changes — the bottleneck is a human
+review pass, not more autonomous work. Continuing to generate new PRs into
+an already-unreviewed backlog has diminishing value; a human clearing the
+existing four would unblock more real progress than another day of research
+would.
+
+**What a stranger should do next**:
+1. **Still highest priority: get a human to look at PR #2** (6 days old now)
+   — same ask as every entry since 08-11, just older. If a human is triaging
+   both repos at once, the four PRs listed above (this repo's #2 +
+   stock-advisory's #5/#6/#7) are all safe to review together.
+2. If egress is ever restored, re-run BTC/SOL at 1095d against `main` **after
+   PR #2 merges** — running pre-merge would reproduce the same silent-wrong-
+   execution-mode bug PR #2 describes.
+3. The trade_count/readiness human decision (2026-08-04/08-05 entries) is
+   still open and unaddressed.
+4. UNIUSDT full run (this task's own seed instructions) is still first in
+   line once egress opens, after the PR #2 re-run above — 8 consecutive days
+   blocked now, not deprioritized on purpose.
+5. Re-check egress before assuming another blocked day — same fast `curl`
+   check as always, in case the policy changes without notice.
