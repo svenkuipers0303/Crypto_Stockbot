@@ -937,3 +937,53 @@ would.
    blocked now, not deprioritized on purpose.
 5. Re-check egress before assuming another blocked day — same fast `curl`
    check as always, in case the policy changes without notice.
+
+### 2026-08-13 (infra re-check — egress still blocked, 8th check since 08-02; PR #2 now 7 days unreviewed, no new PR opened)
+
+**Egress re-tested, same method as every prior check**: `api.binance.com`,
+`api.coingecko.com`, `api.kraken.com`, `api.exchange.coinbase.com`,
+`api.bybit.com` all still `403` at the CONNECT tunnel stage (confirmed via
+both direct `curl` and `$HTTPS_PROXY/__agentproxy/status`'s
+`recentRelayFailures`), `pypi.org` still `200` through the same proxy as a
+control. Identical pattern to every check since 2026-08-02 — this is now
+the 8th consecutive scheduled firing unable to reach a crypto price host
+from this environment. `fetch_history()` still has no offline cache
+fallback. **No new backtest was possible this session.** The outstanding
+tasks named in this routine's own seed instructions — TP_RR=1.5 +
+no-trailing-stop + 2x-fees combined confirmation on BTC/SOL, and the
+full-pipeline UNIUSDT run — remain blocked exactly where the 08-12 entry
+left them, now 9 consecutive days.
+
+**`list_pull_requests` checked before starting.** **PR #2** (the
+`use_limit_orders` CLI-path fix) is **still open, zero review activity —
+now 7 days old.** Confirmed still unchanged and still applies cleanly
+against current `main`.
+
+**Deliberately did not open a new PR this session.** There is nothing new
+to test without live data, and — more importantly — this repo and
+stock-advisory together now have **5 open PRs with zero review activity**
+(this repo's #2, plus stock-advisory's #5/#6/#7/#8), spanning three
+consecutive days of entries (08-11, 08-12 here; 08-12 in stock-advisory)
+all making the same observation. Opening a 6th unreviewed PR would not
+create forward progress; it would just add to a pile a human hasn't looked
+at yet. Sent a direct notification this session flagging the backlog and
+the 8-day infra block, since re-logging the same finding a third or fourth
+time without anyone seeing it isn't accomplishing the routine's purpose.
+No CONFIG or code changes made.
+
+**What a stranger should do next:**
+1. **Still highest priority: get a human to review and clear the backlog**
+   — this repo's PR #2 (7 days) plus stock-advisory's #5/#6/#7/#8 (up to 7
+   days). All are safe, well-verified, non-conflicting changes per their
+   own descriptions.
+2. If egress is ever restored, re-run BTC/SOL at 1095d against `main`
+   **after PR #2 merges** (not before) — see the 08-11 entry for why.
+3. The trade_count/readiness human decision (2026-08-04/05 entries) is
+   still open.
+4. UNIUSDT full run is still first in line once egress opens, after the
+   PR #2 re-run above — 9 consecutive days blocked now.
+5. If the PR backlog is still fully unreviewed on the next run, consider
+   whether opening further new PRs is worth doing at all versus just
+   confirming state and re-flagging — three-plus identical asks with no
+   response is a signal to stop generating more of the same, not to try
+   harder at the same thing.
