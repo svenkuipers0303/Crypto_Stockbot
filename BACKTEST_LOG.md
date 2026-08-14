@@ -987,3 +987,42 @@ No CONFIG or code changes made.
    confirming state and re-flagging — three-plus identical asks with no
    response is a signal to stop generating more of the same, not to try
    harder at the same thing.
+
+### 2026-08-14 (status check only — egress still blocked, 10th consecutive day; PR #2 now 8 days unreviewed; no new PR, no repeat notification)
+
+**Egress re-tested, same method as every prior check**: `api.binance.com`,
+`api.coingecko.com`, `api.kraken.com` all still `403` at the CONNECT tunnel
+stage (confirmed via direct `curl` and `$HTTPS_PROXY/__agentproxy/status`),
+`pypi.org` still `200` as control. No change from 08-13. `fetch_history()`
+still has no offline fallback. **No new backtest was possible this session.**
+All outstanding research (TP_RR=1.5+no-trailing-stop+2x-fees confirmation on
+BTC/SOL, full-pipeline UNIUSDT run) remains blocked exactly where 08-13 left
+it — now 10 consecutive days.
+
+**`list_pull_requests` checked.** PR #2 (`use_limit_orders` CLI-path fix) is
+still open, zero review activity, now 8 days old (opened 08-06). Confirmed
+unchanged, no new information to add by re-diagnosing it again.
+
+**Deliberately did not open a new PR** — there's nothing new to test without
+live data, and generating a second unreviewed PR alongside #2 (or a 6th
+across both repos, counting stock-advisory's #5/#6/#7/#8) has already been
+flagged twice as low-value. This entry is committed directly to `main`
+(log-only, no code/config change), matching this repo's own established
+exception.
+
+**Deliberately did NOT send another push notification.** The 08-13 session
+already sent one flagging this exact backlog (this repo's PR #2 + stock-
+advisory's #5-#8) and the infra block; nothing has changed since then that
+the human doesn't already know. Re-notifying about an unchanged, already-
+reported condition would just be noise — the open ask is still "a human
+needs to review the PRs," and that doesn't need a second ping until either
+the backlog moves or the block clears.
+
+**What a stranger should do next:**
+1. Same as 08-13: get a human to review PR #2 here and #5/#6/#7/#8 in
+   stock-advisory. Nothing new to add to that ask.
+2. If egress is ever restored, re-run BTC/SOL at 1095d against `main`
+   **after PR #2 merges**, then UNIUSDT (first in line, ~10 days blocked).
+3. Keep re-checking egress daily, but consider trimming these infra-only
+   entries to a one-line confirmation if the block persists much longer —
+   the last several entries are now largely repeating each other.
