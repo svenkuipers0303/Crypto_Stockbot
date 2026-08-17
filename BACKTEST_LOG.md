@@ -1026,3 +1026,49 @@ the backlog moves or the block clears.
 3. Keep re-checking egress daily, but consider trimming these infra-only
    entries to a one-line confirmation if the block persists much longer —
    the last several entries are now largely repeating each other.
+
+### 2026-08-17 (status check — egress still blocked, 12 days; PR #2 now 11 days unreviewed; explains the 08-15/08-16 gap; sent a notification)
+
+**Egress re-tested** (`api.binance.com`, `api.coingecko.com`, `api.kraken.com` vs
+`pypi.org` control): identical 403-at-CONNECT pattern, no change since 08-14.
+`fetch_history()` still has no offline fallback. No new backtest possible.
+
+**`list_pull_requests` checked.** PR #2 unchanged: still open, zero review
+activity, now 11 days old (opened 08-06). No new PR opened — same reasoning as
+08-13/08-14 (a 3rd unreviewed PR here, on top of stock-advisory's #5/#6/#7/#8,
+adds nothing).
+
+**Solved the mystery of the missing 08-15/08-16 entries**: this account's
+persistent routine session (`session_01QRjAYq3XxToNQA8va1rWWf`) hit Claude's
+**weekly usage limit** on 2026-08-14 (`status_detail: "You've hit your weekly
+limit · resets Aug 17, 1am (UTC)"`) — not a bug in the routine, not a logging
+failure. The routine simply couldn't fire again until the limit reset, which
+lines up exactly with the reset timestamp (Aug 17, 1am UTC) and today being the
+first successful firing since. Worth remembering next time entries go missing:
+check `get_session` on the routine's persistent session before assuming
+something broke.
+
+**Same root cause silently killed an unrelated hourly watch loop**: a separate
+`send_later`-chained routine babysitting stock-advisory PR #7 (re-checking CI/
+review/mergeability roughly hourly, re-arming itself each time) stopped
+re-arming after its 08-14T10:32 UTC firing — the chain's last trigger has
+`ended_reason: run_once_fired` with no successor, and PR #7 is still open with
+zero comments, so it didn't stop because the task finished. Same weekly-limit
+wall, most likely. Flagging since nothing in this repo needed to change, but a
+human relying on that PR-#7 watch loop should know it went quiet on its own for
+non-obvious reasons, not because anything got resolved.
+
+**No CONFIG or code changes.** Sent one push notification this session — the
+last one was 08-13 (4 days ago) and the backlog has materially aged since
+(PR #2: 8 -> 11 days old) plus the weekly-limit finding above is new
+information the human wouldn't otherwise see.
+
+**What a stranger should do next:**
+1. Still highest priority: a human review pass on PR #2 here (11 days) and
+   #5/#6/#7/#8 in stock-advisory (up to 11 days) — unchanged ask, just older.
+2. If egress is ever restored, re-run BTC/SOL at 1095d against `main` **after
+   PR #2 merges**, then UNIUSDT — now 13 consecutive days blocked.
+3. The trade_count/readiness human decision (2026-08-04/08-05 entries) is
+   still open.
+4. If weekly-limit exhaustion recurs, it's a session-quota issue, not a repo
+   issue — no code-side action needed, just note it here and move on.
