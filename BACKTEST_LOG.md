@@ -1072,3 +1072,41 @@ information the human wouldn't otherwise see.
    still open.
 4. If weekly-limit exhaustion recurs, it's a session-quota issue, not a repo
    issue — no code-side action needed, just note it here and move on.
+
+### 2026-08-18 (status check only — egress still blocked, 13th consecutive day; PR #2 now 12 days unreviewed, still zero activity; no new PR, no notification)
+
+**Egress re-tested**: `api.binance.com`, `api.coingecko.com`, `api.kraken.com`
+all still `403` at the CONNECT tunnel stage (`gateway answered 403 to CONNECT`
+per `$HTTPS_PROXY/__agentproxy/status`), `pypi.org` still `200` as control.
+No change since 08-17. `fetch_history()` still has no offline fallback. **No
+new backtest was possible this session.** TP_RR=1.5+no-trailing-stop+2x-fees
+confirmation on BTC/SOL and the UNIUSDT full-pipeline run remain blocked
+exactly where 08-17 left them — 13 consecutive days now.
+
+**PR #2 checked directly (`get_comments` + `get_reviews`, not just
+`list_pull_requests`'s `updated_at`)**: both return empty — genuinely zero
+activity, not just no visible timestamp change. 12 days old (opened 08-06).
+`main`'s current `CONFIG` was re-confirmed unchanged and matches the
+2026-08-05 PR #1 merge (`trailing_stop_enabled=False`, `take_profit_rr=1.5`,
+`use_limit_orders=True` already present) — `bot.py`/`backtest.py` still
+`py_compile`-clean.
+
+**No new PR opened, no notification sent** — same reasoning as every entry
+since 08-13: nothing has changed (egress block persists, all 5 cross-repo
+PRs — this repo's #2 plus stock-advisory's #5/#6/#7/#8 — remain at zero
+review activity, individually re-verified via `get_comments` this session,
+not just re-read from this log), and the 08-17 session already notified the
+human of this exact condition one day ago. Re-notifying for a single day's
+aging with no state change would be noise; will notify again only if the
+backlog moves (reviewed/merged/commented) or the egress block clears.
+
+**What a stranger should do next:**
+1. Unchanged ask: a human needs to review PR #2 here (12 days) and
+   #5/#6/#7/#8 in stock-advisory (up to 12 days).
+2. If egress is ever restored, re-run BTC/SOL at 1095d against `main`
+   **after PR #2 merges**, then UNIUSDT — 13+ consecutive days blocked.
+3. The trade_count/readiness human decision (2026-08-04/08-05 entries) is
+   still open.
+4. Consider whether these infra-only entries should drop to a single line
+   going forward if the block extends past ~2 weeks with no PR movement —
+   the substance hasn't changed since 08-02.
