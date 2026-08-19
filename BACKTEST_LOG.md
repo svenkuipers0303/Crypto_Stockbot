@@ -1110,3 +1110,52 @@ backlog moves (reviewed/merged/commented) or the egress block clears.
 4. Consider whether these infra-only entries should drop to a single line
    going forward if the block extends past ~2 weeks with no PR movement —
    the substance hasn't changed since 08-02.
+
+### 2026-08-19 (status check — egress still blocked, 14th consecutive day; PR #2 now 13 days unreviewed; backlog is moving on the stock-advisory side)
+
+**Egress re-tested, same method as every prior check**: `api.binance.com`,
+`api.coingecko.com`, `api.kraken.com` all still `403` at the CONNECT tunnel
+stage (confirmed via direct `curl` and `$HTTPS_PROXY/__agentproxy/status`'s
+`recentRelayFailures`), `pypi.org` still `200` as control. No change since
+08-18. `fetch_history()` still has no offline fallback. **No new backtest
+was possible this session.** The outstanding tasks named in this routine's
+own seed instructions — TP_RR=1.5 + no-trailing-stop + 2x-fees combined
+confirmation on BTC/SOL, and the full-pipeline UNIUSDT run — remain blocked
+exactly where 08-18 left them, now 14 consecutive days.
+
+**PR #2 checked directly (`get`, `get_comments`, `get_reviews`)**: still
+open, `mergeable_state: clean`, zero comments and zero reviews — genuinely
+untouched, 13 days old (opened 08-06). No new PR opened here — nothing new
+to test without live data, same reasoning as every entry since 08-13.
+
+**One real change worth noting: the cross-repo PR backlog is moving.**
+`list_pull_requests` on stock-advisory shows **#5 and #8 were merged
+directly to `main` yesterday (08-18)** by the repo owner (`merged_by:
+svenkuipers0303`, no review comments left — just merged). That leaves 3
+open PRs across both repos instead of the peak of 5: this repo's #2 (13
+days), stock-advisory's #6 (9 days) and #7 (8 days). **No push notification
+sent for this** — the human did the merging themselves, so they already
+know; a notification would just be noise. Time was redirected to
+stock-advisory (secondary task) as usual given the block here — added
+`NarrativeEngine` test coverage (26 tests, PR #9) there, closing out the
+last item on that repo's original test-coverage checklist. Full detail in
+`stock-advisory/IMPROVEMENT_LOG.md`'s 2026-08-19 entry, not duplicated here.
+
+**No CONFIG or code changes made this session.**
+
+**What a stranger should do next:**
+1. Still highest priority: get a human to review PR #2 here (13 days,
+   `mergeable_state: clean`, zero activity) and stock-advisory's #6/#7 (up
+   to 9 days) and new #9 (NarrativeEngine tests). The backlog is shrinking,
+   not stuck — worth noting the human is actively engaging now, unlike the
+   long silent stretch from 08-06 to 08-17.
+2. If egress is ever restored, re-run BTC/SOL at 1095d against `main`
+   **after PR #2 merges**, then UNIUSDT — 14+ consecutive days blocked.
+3. The trade_count/readiness human decision (2026-08-04/08-05 entries) is
+   still open and unaddressed.
+4. Re-check egress before assuming another blocked day — same fast `curl`
+   check as always, in case the policy changes without notice.
+5. stock-advisory's test-coverage checklist is now fully closed (once #6/#7
+   merge) — that repo's next task should come from its other checklist
+   categories (data robustness, scoring-quality sanity checks) rather than
+   more test files for their own sake.
