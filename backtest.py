@@ -530,34 +530,41 @@ def run_robustness_tests(df_4h: pd.DataFrame, df_1d: pd.DataFrame,
 
     cfg_fee   = base_cfg["fee_pct"]
     cfg_slip  = base_cfg.get("slippage_pct", 0.0005)
+    cfg_maker = base_cfg.get("maker_fee_pct", 0.0002)
 
     # Tuple format: (cfg_overrides, entry_delay, cooldown_bars, use_limit_orders)
+    # use_limit_orders=None means "inherit base_cfg's own use_limit_orders setting" —
+    # every scenario should stress-test whatever execution mode the bot actually runs
+    # live (CONFIG["use_limit_orders"]), not silently fall back to market orders.
+    # Only the dedicated "limit orders" scenario forces it on, to answer "what if
+    # limit orders were enabled" even when the baseline doesn't already use them.
     fee_scenarios = {
-        "baseline":           ({}, 1, 0, False),
-        "2x fees":            ({"fee_pct": cfg_fee * 2}, 1, 0, False),
-        "3x fees":            ({"fee_pct": cfg_fee * 3}, 1, 0, False),
-        "0.5% slippage":      ({"slippage_pct": 0.005}, 1, 0, False),
-        "worse entry +0.1%":  ({"slippage_pct": cfg_slip + 0.001}, 1, 0, False),
+        "baseline":           ({}, 1, 0, None),
+        "2x fees":            ({"fee_pct": cfg_fee * 2, "maker_fee_pct": cfg_maker * 2}, 1, 0, None),
+        "3x fees":            ({"fee_pct": cfg_fee * 3, "maker_fee_pct": cfg_maker * 3}, 1, 0, None),
+        "0.5% slippage":      ({"slippage_pct": 0.005}, 1, 0, None),
+        "worse entry +0.1%":  ({"slippage_pct": cfg_slip + 0.001}, 1, 0, None),
         "limit orders":       ({"maker_fee_pct": 0.0002}, 1, 0, True),   # maker fee + conditional fill
-        "score_thr=65":       ({"score_threshold": 65}, 1, 0, False),
-        "score_thr=75":       ({"score_threshold": 75}, 1, 0, False),
-        "score_thr=80":       ({"score_threshold": 80}, 1, 0, False),
-        "ATR_mult=2.0":       ({"atr_stop_multiplier": 2.0}, 1, 0, False),
-        "TP_RR=1.5":          ({"take_profit_rr": 1.5}, 1, 0, False),
-        "TP_RR=3.0":          ({"take_profit_rr": 3.0}, 1, 0, False),
-        "delayed entry +1":   ({}, 2, 0, False),   # enter 2 candles after signal
-        "cooldown 1 bar":     ({}, 1, 1, False),
-        "cooldown 2 bars":    ({}, 1, 2, False),
-        "no trail stop":      ({"trailing_stop_enabled": False}, 1, 0, False),
-        "no dyn TP":          ({"dynamic_tp_by_regime": False},  1, 0, False),
+        "score_thr=65":       ({"score_threshold": 65}, 1, 0, None),
+        "score_thr=75":       ({"score_threshold": 75}, 1, 0, None),
+        "score_thr=80":       ({"score_threshold": 80}, 1, 0, None),
+        "ATR_mult=2.0":       ({"atr_stop_multiplier": 2.0}, 1, 0, None),
+        "TP_RR=1.5":          ({"take_profit_rr": 1.5}, 1, 0, None),
+        "TP_RR=3.0":          ({"take_profit_rr": 3.0}, 1, 0, None),
+        "delayed entry +1":   ({}, 2, 0, None),   # enter 2 candles after signal
+        "cooldown 1 bar":     ({}, 1, 1, None),
+        "cooldown 2 bars":    ({}, 1, 2, None),
+        "no trail stop":      ({"trailing_stop_enabled": False}, 1, 0, None),
+        "no dyn TP":          ({"dynamic_tp_by_regime": False},  1, 0, None),
     }
 
     results = {}
     for name, (overrides, delay, cooldown, use_lim) in fee_scenarios.items():
-        cfg    = {**base_cfg, **overrides}
+        cfg = {**base_cfg, **overrides}
+        eff_use_lim = base_cfg.get("use_limit_orders", False) if use_lim is None else use_lim
         trades = simulate(df_4h, df_1d, strategy_name, cfg, fg_val,
                           cooldown_bars=cooldown, entry_delay=delay,
-                          use_limit_orders=use_lim)
+                          use_limit_orders=eff_use_lim)
         m      = calc_metrics(trades, ib)
         results[name] = {
             "profit_factor":   m["profit_factor"],
@@ -664,7 +671,8 @@ def run_risk_model_research(df_4h: pd.DataFrame, df_1d: pd.DataFrame,
 
     for risk_pct in [0.25, 0.50, 0.75, 1.00, 1.25, 1.50]:
         cfg    = {**base_cfg, "risk_per_trade_pct": risk_pct}
-        trades = simulate(df_4h, df_1d, strategy_name, cfg, fg_val)
+        trades = simulate(df_4h, df_1d, strategy_name, cfg, fg_val,
+                          use_limit_orders=cfg.get("use_limit_orders", False))
         m      = calc_metrics(trades, ib)
 
         # Simple risk-of-ruin approximation (Kelly-based):
@@ -1103,7 +1111,8 @@ def _run_one_symbol(client, symbol, days, strategies, cfg, fg_val,
         if verbose:
             print(f"  {B}Running {strat}...{RST}", flush=True)
         t0     = time.time()
-        trades = simulate(df_4h, df_1d, strat, cfg, fg_val=fg_val)
+        trades = simulate(df_4h, df_1d, strat, cfg, fg_val=fg_val,
+                          use_limit_orders=cfg.get("use_limit_orders", False))
         m      = calc_metrics(trades, initial_balance)
         results[strat]         = m
         trades_by_strat[strat] = trades
