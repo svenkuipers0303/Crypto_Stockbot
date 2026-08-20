@@ -678,3 +678,548 @@ given the edge is clearly asset-specific rather than universal — remains the h
 call, but the UNIUSDT result is a data point *for* caution on breadth (don't assume
 this config would work if more symbols were ever added to `CONFIG["symbols"]`) rather
 than a data point against readiness on BTC/SOL specifically.
+
+### 2026-08-05 (infra re-check — Binance/CoinGecko still blocked, 4th consecutive day; CONFIG change implemented instead)
+
+**Egress re-tested first, same method as 08-02/08-03/08-04**: `api.binance.com` and
+`api.coingecko.com` both still return `403` at the CONNECT tunnel stage (`gateway
+answered 403 to CONNECT (policy denial or upstream failure)` per the proxy status
+endpoint), while `pypi.org` returns `200` through the same proxy — confirmed
+host-specific policy denial, not a general outage, same as every prior check. This is
+now the 4th consecutive scheduled firing (08-02 through 08-05) unable to run a new
+backtest from this cloud environment. **No new backtest numbers were produced this
+run** — everything below is implementation of already-logged, already-cross-validated
+findings, not new research.
+
+**What was implemented, and why now rather than continuing to wait**: the 08-04 entries
+above established that `trailing_stop_enabled=False` + `dynamic_tp_by_regime=False` +
+`take_profit_rr=1.5` + `use_limit_orders=True` clears every *critical* readiness check
+on two independent symbols — BTCUSDT (79-90/100 depending on window) and SOLUSDT
+(84/100) — blocked only by `trade_count` (a sample-size gate, not a quality gate). The
+task brief for this routine says: if a change measurably improves the readiness verdict
+on >=2 symbols without regressing others, implement it as a real `CONFIG` change (not
+just a one-off script) and open a PR with before/after numbers. That bar was already
+met per the log, and with a 4th straight day of no network access to independently
+re-verify with a fresh run, waiting further wasn't producing anything — so this session
+implemented the change directly in `bot.py`'s `CONFIG` and opened a PR, rather than
+burning another cycle only re-confirming the same egress block.
+
+**This is NOT the "declare BTC/SOL ready to trade live" decision** flagged for the
+human in the 08-04 entries above — that decision (whether the trade_count shortfall on
+both symbols is an acceptable gap, or whether pooled/cross-symbol evidence should count
+toward the 100-trade bar) is still open and still requires a human call; `--live` was
+not touched and the hard safety boundaries in this file were not crossed. This is the
+narrower, already-justified action of updating the **paper-trading** bot's default
+strategy config to the version that's been confirmed, twice per symbol, to perform
+meaningfully better than the previous defaults — same category of change as any other
+config iteration in this log.
+
+**Exact change** (`bot.py` `CONFIG`, feature branch `crypto/no-trail-tp15-defaults`):
+- `trailing_stop_enabled`: `True` -> `False`
+- `dynamic_tp_by_regime`: `True` -> `False`
+- `take_profit_rr`: `2.0` -> `1.5` (fixed RR now that dynamic-by-regime is off)
+- `use_limit_orders` was **already `True`** in `CONFIG` and `auto_strategy.enabled`
+  was **already `True`** (i.e. the bot was already running limit orders + auto
+  strategy selection, the other two ingredients of the winning combo) — so this PR's
+  actual delta is just the three keys above.
+
+**Before/after, pulled directly from the confirmed full-pipeline runs already in this
+log** (2026-08-04 entries, "limit orders baked into the baseline"):
+| Symbol | Metric | Before (old defaults) | After (this PR's config) |
+|---|---|---|---|
+| BTCUSDT | Readiness score | 32/100 | 90/100 (1095d) / 79/100 (1460d) |
+| BTCUSDT | OOS test PF | 1.39 | 1.76 (1095d) |
+| BTCUSDT | 2x/maker-fee PF | n/a (old baseline never cleared 1.2) | 1.55 (1095d) / 1.27 (1460d) |
+| BTCUSDT | Walk-forward | — | 6/6 windows (100%, 1095d) |
+| SOLUSDT | Readiness score | 16/100 | 84/100 (1095d) |
+| SOLUSDT | OOS test PF | — | 1.49 |
+| SOLUSDT | 2x/maker-fee PF | — | 1.32 |
+| Both | Blocking check | multiple critical failures | trade_count only |
+
+**Verification performed this session** (no network needed): `python3 -m py_compile
+bot.py backtest.py` (clean), `import bot` + `CONFIG` key assertions, `PaperTrader(200.0)`
+instantiation, `LiveTrader(FakeClient(), 'BTCUSDT', 100.0)` instantiation with a mocked
+client, and `atr_position_size()` called directly to confirm the new `take_profit_rr`
+value (1.5) flows through position sizing correctly (50000 entry, 500 ATR ->
+stop 49250, TP 51125 — matches 1.5x the 750 stop distance). No new backtest was run —
+**this PR's numbers are the same numbers already in the 2026-08-04 log entries**, not
+freshly generated today; flagging that plainly since it's a departure from "always
+verify same-session" and was a judgment call given the 4-day network block.
+
+**What a stranger should do next**:
+1. **If network access to Binance/CoinGecko is ever restored in this cloud
+   environment**, the single highest-value thing to do is re-run
+   `python backtest.py --symbol BTCUSDT --strategy auto --days 1095` and the SOLUSDT
+   equivalent *with this PR's config already merged* (i.e. just run it against
+   `bot.py`'s new defaults, no per-run overrides needed) to get an in-environment,
+   independently-reproduced confirmation of the 90/100 and 84/100 numbers above —
+   closes the gap flagged in the paragraph above.
+2. **The trade_count/readiness decision is still open and still needs a human**:
+   whether BTC+SOL both being blocked only by sample size (not quality) across two
+   independent full-pipeline confirmations each is sufficient to treat as "ready", or
+   whether a stricter bar (100 solo trades per symbol, no pooling) still applies. This
+   PR does not resolve that question and does not touch `--live` or any live-trading
+   path — it only changes what the paper bot's default strategy config is.
+3. **UNIUSDT remains out of scope** — it broke the pattern (32/100) but was never in
+   `CONFIG["symbols"]`, so this doesn't affect the BTC/SOL change above; no action
+   needed there unless a human decides to expand the trading universe.
+4. Re-check egress before assuming another blocked day — it's possible the policy
+   changes without a corresponding log update; worth a fast `curl` check against
+   `api.binance.com` before writing off the day as another infra-only entry.
+
+### 2026-08-10 (infra re-check — egress still blocked; confirmed category-wide, not host-specific; no new backtest possible)
+
+**No scheduled entries appear in this log between 2026-08-05 and today** (5 calendar
+days) — unclear whether the routine didn't fire, fired without reaching the logging
+step, or fired and hit the network block early enough that a session ended without
+writing an entry. Flagging the gap for a human to check the trigger's run history;
+not something this session can diagnose from inside the repo.
+
+**Egress re-tested, same method as every prior infra entry, plus one extra step**:
+`api.binance.com` and `api.coingecko.com` both still return `403` at the CONNECT
+tunnel stage (`gateway answered 403 to CONNECT (policy denial or upstream failure)`,
+confirmed via `$HTTPS_PROXY/__agentproxy/status`'s `recentRelayFailures`), while
+`pypi.org` returns `200` through the same proxy — identical pattern to every check
+since 2026-08-02.
+
+**New this session: checked three more exchange APIs never tried before** —
+`api.kraken.com`, `api.exchange.coinbase.com`, `api.bybit.com` — **all three also
+403 at the CONNECT stage**, same failure mode as Binance/CoinGecko. This is useful
+new information: the block is not specific to Binance or even to "the two hosts
+this bot happens to use" — it looks like a **category-wide policy denial on
+market-data/exchange hosts** in this environment, not a narrow allowlist gap on one
+or two domains. Worth relaying that framing to whoever owns the egress policy, since
+"allowlist api.binance.com" may not be the right fix if the policy is categorical —
+it might need a deliberate exception for this environment's use case instead.
+
+**Also confirmed no local fallback exists**: `bot.py`/`backtest.py` have no offline
+mode, no CSV/cache loading path — `fetch_history()` always calls `client.get_klines()`
+live. Nothing changed here since the 2026-08-02 check that first established this.
+
+**No new backtest was possible this session.** No CONFIG or code changes were made —
+the no-trailing-stop + `take_profit_rr=1.5` + `use_limit_orders=True` combo from PR #1
+(merged 2026-08-05) remains `bot.py`'s default and is unchanged. The in-environment
+reproduction of the 90/100 (BTC) / 84/100 (SOL) numbers, and the still-open
+trade_count/readiness human decision, both remain exactly where the 2026-08-05 entry
+left them — nothing to add on either without live data.
+
+**What a stranger should do next**:
+1. Check whether this routine's trigger actually fired daily between 08-06 and
+   08-09 (`list_triggers` / run history) — if it did and produced no log entries,
+   something upstream of "write the log entry" may be failing silently and deserves
+   its own investigation, separate from the egress block.
+2. If egress is ever opened, prioritize exactly step 1 from the 2026-08-05 entry:
+   reproduce the 90/100 (BTC, 1095d) and 84/100 (SOL, 1095d) readiness numbers
+   in-environment against `bot.py`'s current (already-merged) defaults, with no
+   per-run overrides needed.
+3. The trade_count/ready-to-recommend-live decision is still open and still needs a
+   human — see the 2026-08-04/08-05 entries for the full framing. Nothing this
+   session adds to that.
+4. If a human is deciding whether to widen the egress allowlist, pass along that the
+   block looks categorical (5/5 exchange APIs tested so far are blocked the same way),
+   not a simple missing-domain gap — may need a different kind of policy change than
+   "add api.binance.com to the allowlist."
+
+### 2026-08-11 (infra re-check — egress still blocked, 6th check since 08-02; found and reviewed an unmerged bug-fix PR; time redirected to stock-advisory)
+
+**Egress re-tested, same method as every prior check**: `api.binance.com`,
+`api.coingecko.com`, `api.kraken.com`, `api.exchange.coinbase.com`, and
+`api.bybit.com` all still `403` at the CONNECT tunnel stage; `pypi.org` returns
+`200` through the same proxy as a control. Identical pattern to every check since
+2026-08-02 — no change in the block. `fetch_history()` still has no offline/cache
+fallback (re-confirmed by reading it again), so no new backtest was possible.
+
+**`list_pull_requests` checked before starting** (this repo's own hard-won lesson,
+first learned in the sibling stock-advisory repo's log): **PR #2** ("Fix
+backtest.py: baseline/robustness sim never read cfg['use_limit_orders']"), opened
+2026-08-06, is still open and unreviewed — 5 days now. Read it in full: it's a
+real, well-verified fix (the plain `python backtest.py --symbol ... --days ...`
+CLI path never passed `use_limit_orders` through to `simulate()`/
+`run_robustness_tests()`, so a stranger running the ordinary CLI command against
+current `main` would *not* reproduce the 90/100 BTC / 84/100 SOL numbers already
+in this log — those numbers came from a hand-rolled script that explicitly passed
+`use_limit_orders=True`, not the documented CLI invocation). Confirmed the bug is
+still live on `main` by grepping `simulate(` call sites in `backtest.py` — two of
+three call sites still omit `use_limit_orders`, matching the PR's diagnosis
+exactly. **Did not merge it** — this file's own "Hard safety boundaries" section
+says a human reviews and merges PRs, and PR #2 has zero review comments so far, so
+it's correctly just waiting. Flagging it here mainly so tomorrow's session doesn't
+re-discover the same bug from scratch, and so a human sees it's been sitting
+unreviewed for a while.
+
+**No CONFIG or code changes made this session** — nothing to test-and-compare
+without live data, and the one available offline lever (reviewing PR #2) doesn't
+call for a code change of its own, just a merge decision that isn't this session's
+to make.
+
+**Time redirected to stock-advisory** (secondary task) per the routine's own
+instructions once egress-blocked work is exhausted: added 37-test coverage for
+`InvestmentBriefEngine` there (opened as PR #7). See that repo's
+`IMPROVEMENT_LOG.md` for details — noted there for completeness, not duplicated
+here since it's out of this file's scope.
+
+**What a stranger should do next**:
+1. **Highest priority: get a human to look at PR #2.** It's a correctness fix for
+   the measurement tool itself (not `bot.py`, not live trading) and has been open
+   5 days with zero review activity. Until it merges, the documented CLI command in
+   this file's own "Goal" section (`python backtest.py --symbol SYMBOL --strategy
+   STRAT --days 1095`) will silently grade the wrong execution mode for anyone who
+   runs it fresh against current `main`.
+2. If egress is ever restored, re-run BTC/SOL at 1095d against `main` **after PR #2
+   merges** (not before) — running it pre-merge would just reproduce the same
+   silent-wrong-execution-mode bug the PR describes, wasting a rare egress window
+   on a number that doesn't reflect what `CONFIG` actually says the bot does.
+3. The trade_count/readiness human decision (2026-08-04/05 entries) is still open
+   and still unaddressed by anything this session did.
+4. UNIUSDT full run (from this task's own seed instructions) still hasn't happened
+   — blocked by the same egress wall as everything else, not deprioritized on
+   purpose. First in line once egress opens, after the PR #2 re-run above.
+
+### 2026-08-12 (infra re-check — egress still blocked, 7th check since 08-02; PR #2 now 6 days unreviewed)
+
+**Egress re-tested, same method as every prior check**: `api.binance.com`,
+`api.coingecko.com`, `api.kraken.com` all still `403` at the CONNECT tunnel
+stage (`gateway answered 403 to CONNECT (policy denial or upstream failure)`
+per `$HTTPS_PROXY/__agentproxy/status`), `pypi.org` still `200` through the
+same proxy as a control. Identical pattern to every check since 2026-08-02 —
+this is now the 7th consecutive scheduled firing unable to reach a crypto
+price host from this environment. `fetch_history()` still has no offline
+cache fallback. **No new backtest was possible this session.** The
+outstanding tasks — TP_RR=1.5 + no-trailing-stop + 2x-fees combined
+confirmation on BTC/SOL, and the full-pipeline UNIUSDT run named in this
+routine's own seed instructions — remain blocked exactly where the 08-11
+entry left them.
+
+**`list_pull_requests` checked before starting.** **PR #2** ("Fix
+backtest.py: baseline/robustness sim never read cfg['use_limit_orders']"),
+opened 2026-08-06, is **still open with zero review activity — now 6 days
+old.** Re-read the diff: it's still a clean, well-verified, backward-compatible
+fix scoped entirely to `backtest.py`'s measurement code (no `bot.py`/`CONFIG`
+changes), and it's still correctly not this session's call to merge per this
+file's own safety rules. Not re-verifying it again today beyond confirming it's
+unchanged and still applies cleanly against current `main` — re-doing the same
+diagnosis a third time without new information wouldn't add anything.
+
+**No CONFIG or code changes made this session** — nothing to test-and-compare
+without live data, and PR #2 doesn't need further action from this session,
+just a human merge decision.
+
+**Time redirected to stock-advisory** (secondary task): added integration test
+coverage for `StockAdvisor.analyze_all()` (per-ticker fetcher-exception
+fallback behavior, previously unverified) and `ReportGenerator.generate_html()`
+using a mocked `DataFetcher` — the one remaining item on that repo's original
+test-coverage checklist. Opened as PR #8. While there, found that repo now
+also has **three** open, unreviewed test-only PRs (#5, #6, #7 — oldest, #5,
+is also 6 days old) stacking up the same way PR #2 is here. See
+`stock-advisory/IMPROVEMENT_LOG.md`'s 2026-08-12 entry for full detail.
+
+**Worth stating plainly since it's now a two-repo pattern, not a one-off**:
+across both repos there are currently **4 open PRs with zero review activity**
+(this repo's #2, stock-advisory's #5/#6/#7), two of which are 6 days old. All
+are safe, well-verified, non-conflicting changes — the bottleneck is a human
+review pass, not more autonomous work. Continuing to generate new PRs into
+an already-unreviewed backlog has diminishing value; a human clearing the
+existing four would unblock more real progress than another day of research
+would.
+
+**What a stranger should do next**:
+1. **Still highest priority: get a human to look at PR #2** (6 days old now)
+   — same ask as every entry since 08-11, just older. If a human is triaging
+   both repos at once, the four PRs listed above (this repo's #2 +
+   stock-advisory's #5/#6/#7) are all safe to review together.
+2. If egress is ever restored, re-run BTC/SOL at 1095d against `main` **after
+   PR #2 merges** — running pre-merge would reproduce the same silent-wrong-
+   execution-mode bug PR #2 describes.
+3. The trade_count/readiness human decision (2026-08-04/08-05 entries) is
+   still open and unaddressed.
+4. UNIUSDT full run (this task's own seed instructions) is still first in
+   line once egress opens, after the PR #2 re-run above — 8 consecutive days
+   blocked now, not deprioritized on purpose.
+5. Re-check egress before assuming another blocked day — same fast `curl`
+   check as always, in case the policy changes without notice.
+
+### 2026-08-13 (infra re-check — egress still blocked, 8th check since 08-02; PR #2 now 7 days unreviewed, no new PR opened)
+
+**Egress re-tested, same method as every prior check**: `api.binance.com`,
+`api.coingecko.com`, `api.kraken.com`, `api.exchange.coinbase.com`,
+`api.bybit.com` all still `403` at the CONNECT tunnel stage (confirmed via
+both direct `curl` and `$HTTPS_PROXY/__agentproxy/status`'s
+`recentRelayFailures`), `pypi.org` still `200` through the same proxy as a
+control. Identical pattern to every check since 2026-08-02 — this is now
+the 8th consecutive scheduled firing unable to reach a crypto price host
+from this environment. `fetch_history()` still has no offline cache
+fallback. **No new backtest was possible this session.** The outstanding
+tasks named in this routine's own seed instructions — TP_RR=1.5 +
+no-trailing-stop + 2x-fees combined confirmation on BTC/SOL, and the
+full-pipeline UNIUSDT run — remain blocked exactly where the 08-12 entry
+left them, now 9 consecutive days.
+
+**`list_pull_requests` checked before starting.** **PR #2** (the
+`use_limit_orders` CLI-path fix) is **still open, zero review activity —
+now 7 days old.** Confirmed still unchanged and still applies cleanly
+against current `main`.
+
+**Deliberately did not open a new PR this session.** There is nothing new
+to test without live data, and — more importantly — this repo and
+stock-advisory together now have **5 open PRs with zero review activity**
+(this repo's #2, plus stock-advisory's #5/#6/#7/#8), spanning three
+consecutive days of entries (08-11, 08-12 here; 08-12 in stock-advisory)
+all making the same observation. Opening a 6th unreviewed PR would not
+create forward progress; it would just add to a pile a human hasn't looked
+at yet. Sent a direct notification this session flagging the backlog and
+the 8-day infra block, since re-logging the same finding a third or fourth
+time without anyone seeing it isn't accomplishing the routine's purpose.
+No CONFIG or code changes made.
+
+**What a stranger should do next:**
+1. **Still highest priority: get a human to review and clear the backlog**
+   — this repo's PR #2 (7 days) plus stock-advisory's #5/#6/#7/#8 (up to 7
+   days). All are safe, well-verified, non-conflicting changes per their
+   own descriptions.
+2. If egress is ever restored, re-run BTC/SOL at 1095d against `main`
+   **after PR #2 merges** (not before) — see the 08-11 entry for why.
+3. The trade_count/readiness human decision (2026-08-04/05 entries) is
+   still open.
+4. UNIUSDT full run is still first in line once egress opens, after the
+   PR #2 re-run above — 9 consecutive days blocked now.
+5. If the PR backlog is still fully unreviewed on the next run, consider
+   whether opening further new PRs is worth doing at all versus just
+   confirming state and re-flagging — three-plus identical asks with no
+   response is a signal to stop generating more of the same, not to try
+   harder at the same thing.
+
+### 2026-08-20 (status check only — egress still blocked, 15th consecutive day; PR #2 now 14 days unreviewed; time redirected to stock-advisory, real bug found+fixed there)
+
+**Egress re-tested, same method as every prior check**: `api.binance.com`,
+`api.coingecko.com`, `api.kraken.com` all still `403` at the CONNECT tunnel
+stage (confirmed via direct `curl` and `$HTTPS_PROXY/__agentproxy/status`'s
+`recentRelayFailures`), `pypi.org` still `200` as control. No change since
+08-19. `fetch_history()` still has no offline fallback (re-checked the
+function directly, not just the log's prior claim), and no cached OHLCV data
+exists anywhere in the repo to substitute. **No new backtest was possible
+this session.** This routine's own outstanding tasks — TP_RR=1.5 +
+no-trailing-stop + 2x-fees combined confirmation on BTC/SOL, and the
+full-pipeline UNIUSDT run — remain blocked exactly where 08-19 left them,
+now 15 consecutive days.
+
+**PR #2 checked directly (`get`, `get_comments`, `get_reviews`)**: still
+open, `mergeable_state: clean`, zero comments and zero reviews, 14 days old
+(opened 08-06). No new PR opened here — nothing new to test without live
+data, same reasoning as every entry since 08-13.
+
+**No CONFIG or code changes made in this repo this session.**
+
+**Time redirected to stock-advisory (secondary task), per this routine's own
+established pattern when the primary is egress-blocked.** Per that repo's
+own 08-19 "what's next" guidance (test-coverage checklist now closed),
+picked a scoring-quality item and found a real bug on close reading of
+`StockAdvisor.__init__`: `USER_PROFILES.get(profile_key,
+USER_PROFILES["balanced"])` returns a live reference into the module-level
+dict, not a copy, so `self.profile["key"] = profile_key` permanently mutated
+the shared global — an invalid `--profile` name silently fell back to
+`balanced`'s weights correctly but wrote the typo into the *global*
+`balanced` dict's `"key"` field, which the analysis cache then reports as
+the profile that was used. Fixed by copying the dict and validating the key
+before falling back; added 3 regression tests, mutation-tested them against
+the reverted pre-fix code to confirm they actually catch it (all 3 failed as
+expected), 68/68 full suite passing after the fix. Opened as stock-advisory
+PR #10. Full detail in `stock-advisory/IMPROVEMENT_LOG.md`'s 2026-08-20
+entry, not duplicated here.
+
+**Cross-repo PR backlog is back up to 5** (all independently verified,
+non-overlapping, zero review activity on any of them): this repo's #2 (14
+days), stock-advisory's #6 (12 days), #7 (9 days), #9 (1 day), and #10 (new
+this session). This matches the prior peak that triggered a notification on
+08-13 — sending one this session too, since "a real fix landed and the
+backlog is back to peak size" is new information, not a repeat of
+yesterday's unchanged status.
+
+**What a stranger should do next:**
+1. Get a human to review the 5-PR backlog: this repo's #2 (14 days,
+   `mergeable_state: clean`) and stock-advisory's #6/#7/#9/#10 (up to 12
+   days). All still safe, verified, non-conflicting per their own
+   descriptions.
+2. If egress is ever restored, re-run BTC/SOL at 1095d against `main`
+   **after PR #2 merges** (not before — see 08-11 entry for why), then
+   UNIUSDT — 15+ consecutive days blocked now.
+3. The trade_count/readiness human decision (2026-08-04/05 entries) is
+   still open and unaddressed.
+4. Re-check egress before assuming another blocked day — same fast `curl`
+   check as always, in case the policy changes without notice.
+5. In stock-advisory: the profile-mutation bug's root cause (a `.get(key,
+   GLOBAL[...])` call returning a live reference rather than a copy) may not
+   be isolated to `StockAdvisor.__init__` — worth grepping for the same
+   shape elsewhere in `stock_advisor.py` before assuming it's fully closed
+   out. See that repo's PR #10 description.
+
+### 2026-08-14 (status check only — egress still blocked, 10th consecutive day; PR #2 now 8 days unreviewed; no new PR, no repeat notification)
+
+**Egress re-tested, same method as every prior check**: `api.binance.com`,
+`api.coingecko.com`, `api.kraken.com` all still `403` at the CONNECT tunnel
+stage (confirmed via direct `curl` and `$HTTPS_PROXY/__agentproxy/status`),
+`pypi.org` still `200` as control. No change from 08-13. `fetch_history()`
+still has no offline fallback. **No new backtest was possible this session.**
+All outstanding research (TP_RR=1.5+no-trailing-stop+2x-fees confirmation on
+BTC/SOL, full-pipeline UNIUSDT run) remains blocked exactly where 08-13 left
+it — now 10 consecutive days.
+
+**`list_pull_requests` checked.** PR #2 (`use_limit_orders` CLI-path fix) is
+still open, zero review activity, now 8 days old (opened 08-06). Confirmed
+unchanged, no new information to add by re-diagnosing it again.
+
+**Deliberately did not open a new PR** — there's nothing new to test without
+live data, and generating a second unreviewed PR alongside #2 (or a 6th
+across both repos, counting stock-advisory's #5/#6/#7/#8) has already been
+flagged twice as low-value. This entry is committed directly to `main`
+(log-only, no code/config change), matching this repo's own established
+exception.
+
+**Deliberately did NOT send another push notification.** The 08-13 session
+already sent one flagging this exact backlog (this repo's PR #2 + stock-
+advisory's #5-#8) and the infra block; nothing has changed since then that
+the human doesn't already know. Re-notifying about an unchanged, already-
+reported condition would just be noise — the open ask is still "a human
+needs to review the PRs," and that doesn't need a second ping until either
+the backlog moves or the block clears.
+
+**What a stranger should do next:**
+1. Same as 08-13: get a human to review PR #2 here and #5/#6/#7/#8 in
+   stock-advisory. Nothing new to add to that ask.
+2. If egress is ever restored, re-run BTC/SOL at 1095d against `main`
+   **after PR #2 merges**, then UNIUSDT (first in line, ~10 days blocked).
+3. Keep re-checking egress daily, but consider trimming these infra-only
+   entries to a one-line confirmation if the block persists much longer —
+   the last several entries are now largely repeating each other.
+
+### 2026-08-17 (status check — egress still blocked, 12 days; PR #2 now 11 days unreviewed; explains the 08-15/08-16 gap; sent a notification)
+
+**Egress re-tested** (`api.binance.com`, `api.coingecko.com`, `api.kraken.com` vs
+`pypi.org` control): identical 403-at-CONNECT pattern, no change since 08-14.
+`fetch_history()` still has no offline fallback. No new backtest possible.
+
+**`list_pull_requests` checked.** PR #2 unchanged: still open, zero review
+activity, now 11 days old (opened 08-06). No new PR opened — same reasoning as
+08-13/08-14 (a 3rd unreviewed PR here, on top of stock-advisory's #5/#6/#7/#8,
+adds nothing).
+
+**Solved the mystery of the missing 08-15/08-16 entries**: this account's
+persistent routine session (`session_01QRjAYq3XxToNQA8va1rWWf`) hit Claude's
+**weekly usage limit** on 2026-08-14 (`status_detail: "You've hit your weekly
+limit · resets Aug 17, 1am (UTC)"`) — not a bug in the routine, not a logging
+failure. The routine simply couldn't fire again until the limit reset, which
+lines up exactly with the reset timestamp (Aug 17, 1am UTC) and today being the
+first successful firing since. Worth remembering next time entries go missing:
+check `get_session` on the routine's persistent session before assuming
+something broke.
+
+**Same root cause silently killed an unrelated hourly watch loop**: a separate
+`send_later`-chained routine babysitting stock-advisory PR #7 (re-checking CI/
+review/mergeability roughly hourly, re-arming itself each time) stopped
+re-arming after its 08-14T10:32 UTC firing — the chain's last trigger has
+`ended_reason: run_once_fired` with no successor, and PR #7 is still open with
+zero comments, so it didn't stop because the task finished. Same weekly-limit
+wall, most likely. Flagging since nothing in this repo needed to change, but a
+human relying on that PR-#7 watch loop should know it went quiet on its own for
+non-obvious reasons, not because anything got resolved.
+
+**No CONFIG or code changes.** Sent one push notification this session — the
+last one was 08-13 (4 days ago) and the backlog has materially aged since
+(PR #2: 8 -> 11 days old) plus the weekly-limit finding above is new
+information the human wouldn't otherwise see.
+
+**What a stranger should do next:**
+1. Still highest priority: a human review pass on PR #2 here (11 days) and
+   #5/#6/#7/#8 in stock-advisory (up to 11 days) — unchanged ask, just older.
+2. If egress is ever restored, re-run BTC/SOL at 1095d against `main` **after
+   PR #2 merges**, then UNIUSDT — now 13 consecutive days blocked.
+3. The trade_count/readiness human decision (2026-08-04/08-05 entries) is
+   still open.
+4. If weekly-limit exhaustion recurs, it's a session-quota issue, not a repo
+   issue — no code-side action needed, just note it here and move on.
+
+### 2026-08-18 (status check only — egress still blocked, 13th consecutive day; PR #2 now 12 days unreviewed, still zero activity; no new PR, no notification)
+
+**Egress re-tested**: `api.binance.com`, `api.coingecko.com`, `api.kraken.com`
+all still `403` at the CONNECT tunnel stage (`gateway answered 403 to CONNECT`
+per `$HTTPS_PROXY/__agentproxy/status`), `pypi.org` still `200` as control.
+No change since 08-17. `fetch_history()` still has no offline fallback. **No
+new backtest was possible this session.** TP_RR=1.5+no-trailing-stop+2x-fees
+confirmation on BTC/SOL and the UNIUSDT full-pipeline run remain blocked
+exactly where 08-17 left them — 13 consecutive days now.
+
+**PR #2 checked directly (`get_comments` + `get_reviews`, not just
+`list_pull_requests`'s `updated_at`)**: both return empty — genuinely zero
+activity, not just no visible timestamp change. 12 days old (opened 08-06).
+`main`'s current `CONFIG` was re-confirmed unchanged and matches the
+2026-08-05 PR #1 merge (`trailing_stop_enabled=False`, `take_profit_rr=1.5`,
+`use_limit_orders=True` already present) — `bot.py`/`backtest.py` still
+`py_compile`-clean.
+
+**No new PR opened, no notification sent** — same reasoning as every entry
+since 08-13: nothing has changed (egress block persists, all 5 cross-repo
+PRs — this repo's #2 plus stock-advisory's #5/#6/#7/#8 — remain at zero
+review activity, individually re-verified via `get_comments` this session,
+not just re-read from this log), and the 08-17 session already notified the
+human of this exact condition one day ago. Re-notifying for a single day's
+aging with no state change would be noise; will notify again only if the
+backlog moves (reviewed/merged/commented) or the egress block clears.
+
+**What a stranger should do next:**
+1. Unchanged ask: a human needs to review PR #2 here (12 days) and
+   #5/#6/#7/#8 in stock-advisory (up to 12 days).
+2. If egress is ever restored, re-run BTC/SOL at 1095d against `main`
+   **after PR #2 merges**, then UNIUSDT — 13+ consecutive days blocked.
+3. The trade_count/readiness human decision (2026-08-04/08-05 entries) is
+   still open.
+4. Consider whether these infra-only entries should drop to a single line
+   going forward if the block extends past ~2 weeks with no PR movement —
+   the substance hasn't changed since 08-02.
+
+### 2026-08-19 (status check — egress still blocked, 14th consecutive day; PR #2 now 13 days unreviewed; backlog is moving on the stock-advisory side)
+
+**Egress re-tested, same method as every prior check**: `api.binance.com`,
+`api.coingecko.com`, `api.kraken.com` all still `403` at the CONNECT tunnel
+stage (confirmed via direct `curl` and `$HTTPS_PROXY/__agentproxy/status`'s
+`recentRelayFailures`), `pypi.org` still `200` as control. No change since
+08-18. `fetch_history()` still has no offline fallback. **No new backtest
+was possible this session.** The outstanding tasks named in this routine's
+own seed instructions — TP_RR=1.5 + no-trailing-stop + 2x-fees combined
+confirmation on BTC/SOL, and the full-pipeline UNIUSDT run — remain blocked
+exactly where 08-18 left them, now 14 consecutive days.
+
+**PR #2 checked directly (`get`, `get_comments`, `get_reviews`)**: still
+open, `mergeable_state: clean`, zero comments and zero reviews — genuinely
+untouched, 13 days old (opened 08-06). No new PR opened here — nothing new
+to test without live data, same reasoning as every entry since 08-13.
+
+**One real change worth noting: the cross-repo PR backlog is moving.**
+`list_pull_requests` on stock-advisory shows **#5 and #8 were merged
+directly to `main` yesterday (08-18)** by the repo owner (`merged_by:
+svenkuipers0303`, no review comments left — just merged). That leaves 3
+open PRs across both repos instead of the peak of 5: this repo's #2 (13
+days), stock-advisory's #6 (9 days) and #7 (8 days). **No push notification
+sent for this** — the human did the merging themselves, so they already
+know; a notification would just be noise. Time was redirected to
+stock-advisory (secondary task) as usual given the block here — added
+`NarrativeEngine` test coverage (26 tests, PR #9) there, closing out the
+last item on that repo's original test-coverage checklist. Full detail in
+`stock-advisory/IMPROVEMENT_LOG.md`'s 2026-08-19 entry, not duplicated here.
+
+**No CONFIG or code changes made this session.**
+
+**What a stranger should do next:**
+1. Still highest priority: get a human to review PR #2 here (13 days,
+   `mergeable_state: clean`, zero activity) and stock-advisory's #6/#7 (up
+   to 9 days) and new #9 (NarrativeEngine tests). The backlog is shrinking,
+   not stuck — worth noting the human is actively engaging now, unlike the
+   long silent stretch from 08-06 to 08-17.
+2. If egress is ever restored, re-run BTC/SOL at 1095d against `main`
+   **after PR #2 merges**, then UNIUSDT — 14+ consecutive days blocked.
+3. The trade_count/readiness human decision (2026-08-04/08-05 entries) is
+   still open and unaddressed.
+4. Re-check egress before assuming another blocked day — same fast `curl`
+   check as always, in case the policy changes without notice.
+5. stock-advisory's test-coverage checklist is now fully closed (once #6/#7
+   merge) — that repo's next task should come from its other checklist
+   categories (data robustness, scoring-quality sanity checks) rather than
+   more test files for their own sake.
