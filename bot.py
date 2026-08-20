@@ -30,7 +30,7 @@ import time
 import logging
 import argparse
 import urllib.request
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 
 import pandas as pd
 import numpy as np
@@ -958,6 +958,101 @@ class SkipTracker:
 
 
 # ─────────────────────────────────────────────────────────────
+#  TRADER STATE PERSISTENCE
+#  Survives restarts: an open position or a resting live order is not
+#  silently forgotten just because the process (re)started. Saved once per
+#  main-loop iteration after all symbols are processed — worst case on an
+#  ungraceful crash is losing one poll interval's worth of state, versus
+#  losing it entirely on every restart (the prior behavior).
+# ─────────────────────────────────────────────────────────────
+STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trader_state.json")
+
+def _ser_position(pos):
+    if not pos:
+        return None
+    d = dict(pos)
+    if isinstance(d.get("entry_ts"), datetime):
+        d["entry_ts"] = d["entry_ts"].isoformat()
+    return d
+
+def _deser_position(d):
+    if not d:
+        return None
+    d = dict(d)
+    if d.get("entry_ts"):
+        d["entry_ts"] = datetime.fromisoformat(d["entry_ts"])
+    return d
+
+def _ser_pending_order(po):
+    if not po:
+        return None
+    d = dict(po)
+    if isinstance(d.get("expires_at"), datetime):
+        d["expires_at"] = d["expires_at"].isoformat()
+    return d
+
+def _deser_pending_order(d):
+    if not d:
+        return None
+    d = dict(d)
+    if d.get("expires_at"):
+        d["expires_at"] = datetime.fromisoformat(d["expires_at"])
+    return d
+
+def save_trader_state(traders: dict):
+    try:
+        data = {}
+        for sym, t in traders.items():
+            data[sym] = {
+                "position":      _ser_position(t.position),
+                "pending_order": _ser_pending_order(getattr(t, "pending_order", None)),
+                "balance":       t.balance,
+                "peak_bal":      t.peak_bal,
+                "initial_bal":   t.initial_bal,
+                "daily_pnl":     t.daily_pnl,
+                "weekly_pnl":    t.weekly_pnl,
+                "daily_reset":   t.daily_reset.isoformat(),
+                "weekly_reset":  t.weekly_reset,
+                "trades":        t.trades,
+            }
+        tmp = STATE_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        os.replace(tmp, STATE_FILE)   # atomic — never leaves a half-written state file
+    except Exception as e:
+        log.warning(f"Trader state save failed: {e}")
+
+def load_all_trader_state() -> dict:
+    try:
+        with open(STATE_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def restore_trader(trader, saved: dict, sym: str):
+    if not saved:
+        return
+    trader.position = _deser_position(saved.get("position"))
+    if hasattr(trader, "pending_order"):
+        trader.pending_order = _deser_pending_order(saved.get("pending_order"))
+    trader.balance     = saved.get("balance",     trader.balance)
+    trader.peak_bal     = saved.get("peak_bal",    trader.peak_bal)
+    trader.initial_bal  = saved.get("initial_bal", trader.initial_bal)
+    trader.daily_pnl    = saved.get("daily_pnl",   0.0)
+    trader.weekly_pnl   = saved.get("weekly_pnl",  0.0)
+    if saved.get("daily_reset"):
+        trader.daily_reset = date.fromisoformat(saved["daily_reset"])
+    trader.weekly_reset = saved.get("weekly_reset", trader.weekly_reset)
+    trader.trades = saved.get("trades", [])
+    if trader.position:
+        log.info(f"[{sym}] Restored open position from disk: entry={trader.position.get('entry')} "
+                 f"qty={trader.position.get('qty')}")
+    if getattr(trader, "pending_order", None):
+        log.info(f"[{sym}] Restored pending order from disk: order_id="
+                 f"{trader.pending_order.get('order_id')}")
+
+
+# ─────────────────────────────────────────────────────────────
 #  ACTIVE STRATEGY ENGINE  (1H Pullback to EMA)
 # ─────────────────────────────────────────────────────────────
 class ActiveStrategyEngine:
@@ -1406,17 +1501,18 @@ class PaperTrader:
 # ─────────────────────────────────────────────────────────────
 class LiveTrader:
     def __init__(self, client, symbol, equity: float):
-        self.client       = client
-        self.symbol       = symbol
-        self.position     = None
-        self.balance      = equity
-        self.initial_bal  = equity
-        self.peak_bal     = equity
-        self.trades: list = []
-        self.daily_pnl    = 0.0
-        self.weekly_pnl   = 0.0
-        self.daily_reset  = datetime.now(timezone.utc).date()
-        self.weekly_reset = datetime.now(timezone.utc).isocalendar()[1]
+        self.client        = client
+        self.symbol        = symbol
+        self.position      = None
+        self.pending_order = None   # resting live LIMIT order awaiting fill/expiry
+        self.balance       = equity
+        self.initial_bal   = equity
+        self.peak_bal      = equity
+        self.trades: list  = []
+        self.daily_pnl     = 0.0
+        self.weekly_pnl    = 0.0
+        self.daily_reset   = datetime.now(timezone.utc).date()
+        self.weekly_reset  = datetime.now(timezone.utc).isocalendar()[1]
 
     def _check_resets(self):
         today = datetime.now(timezone.utc).date()
@@ -1432,6 +1528,23 @@ class LiveTrader:
         p = int(round(-math.log(step, 10), 0))
         return round(math.floor(qty / step) * step, p)
 
+    def _round_price(self, price, tick):
+        p = int(round(-math.log(tick, 10), 0))
+        return round(math.floor(price / tick) * tick, p)
+
+    def _symbol_filters(self, symbol):
+        """LOT_SIZE step, PRICE_FILTER tick size, and MIN_NOTIONAL, in one lookup."""
+        info = self.client.get_symbol_info(symbol)
+        filters = {f["filterType"]: f for f in info["filters"]}
+        step  = float(filters["LOT_SIZE"]["stepSize"])
+        tick  = float(filters.get("PRICE_FILTER", {}).get("tickSize", "0.00000001"))
+        min_notional = 0.0
+        for key in ("MIN_NOTIONAL", "NOTIONAL"):
+            if key in filters:
+                min_notional = float(filters[key].get("minNotional") or filters[key].get("notional") or 0)
+                break
+        return step, tick, min_notional
+
     @staticmethod
     def _avg_fill(order: dict, qty: float, fallback: float) -> float:
         fills = order.get("fills") or []
@@ -1443,9 +1556,12 @@ class LiveTrader:
         if self.position:
             return
         try:
-            info = self.client.get_symbol_info(symbol)
-            step = float(next(f for f in info["filters"] if f["filterType"] == "LOT_SIZE")["stepSize"])
-            qty  = self._round_qty(usdt / price, step)
+            step, _tick, min_notional = self._symbol_filters(symbol)
+            qty = self._round_qty(usdt / price, step)
+            if qty <= 0 or qty * price < min_notional:
+                log.warning(f"[{symbol}] Order size {qty * price:.2f} USDT below "
+                            f"min notional {min_notional:.2f} — skipping buy")
+                return
             o    = self.client.order_market_buy(symbol=symbol, quantity=qty)
             fill = self._avg_fill(o, qty, price)
             self.balance -= usdt
@@ -1456,6 +1572,76 @@ class LiveTrader:
             log.info(f"✅  LIVE BUY  {qty} {symbol} @ ~{fill:.4f}  order={o['orderId']}  balance={self.balance:.2f}")
         except BinanceAPIException as e:
             log.error(f"BUY failed: {e}")
+
+    def place_limit_buy(self, symbol, limit_price, usdt, stop, tp, cfg, atr=None,
+                         expires_at=None):
+        """Place a REAL resting limit order on the exchange (not a client-side
+        simulation) — fills/expiry are discovered by polling check_pending_order()."""
+        if self.position or self.pending_order:
+            return False
+        try:
+            step, tick, min_notional = self._symbol_filters(symbol)
+            rprice = self._round_price(limit_price, tick)
+            qty    = self._round_qty(usdt / rprice, step)
+            if qty <= 0 or qty * rprice < min_notional:
+                log.warning(f"[{symbol}] Limit order size {qty * rprice:.2f} USDT below "
+                            f"min notional {min_notional:.2f} — skipping")
+                return False
+            price_str = f"{rprice:.8f}".rstrip("0").rstrip(".")
+            o = self.client.order_limit_buy(symbol=symbol, quantity=qty, price=price_str)
+            self.pending_order = {
+                "order_id": o["orderId"], "symbol": symbol, "qty": qty,
+                "limit_price": rprice, "stop": stop, "tp": tp,
+                "usdt": usdt, "atr": atr, "expires_at": expires_at,
+            }
+            log.info(f"✅  LIVE LIMIT order placed  {qty} {symbol} @ {rprice}  order={o['orderId']}")
+            return True
+        except BinanceAPIException as e:
+            log.error(f"LIMIT BUY failed: {e}")
+            return False
+
+    def check_pending_order(self) -> str:
+        """Poll the resting limit order's status.
+        Returns 'filled', 'pending', or 'gone' (no pending order / terminal non-fill)."""
+        if not self.pending_order:
+            return "gone"
+        po = self.pending_order
+        try:
+            o = self.client.get_order(symbol=po["symbol"], orderId=po["order_id"])
+        except BinanceAPIException as e:
+            log.error(f"[{po['symbol']}] Order status check failed: {e}")
+            return "pending"
+
+        status = o["status"]
+        if status == "FILLED":
+            executed = float(o["executedQty"])
+            quote    = float(o["cummulativeQuoteQty"])
+            fill     = quote / executed if executed > 0 else po["limit_price"]
+            self.balance -= po["usdt"]
+            self.position = {"symbol": po["symbol"], "entry": fill, "qty": executed,
+                              "stop": po["stop"], "tp": po["tp"], "usdt": po["usdt"],
+                              "atr_entry": po["atr"], "peak": fill,
+                              "entry_ts": datetime.now(timezone.utc)}
+            log.info(f"✅  LIVE LIMIT FILL  {executed} {po['symbol']} @ {fill:.4f}  "
+                     f"order={po['order_id']}  balance={self.balance:.2f}")
+            self.pending_order = None
+            return "filled"
+        if status in ("CANCELED", "EXPIRED", "REJECTED", "PENDING_CANCEL"):
+            log.info(f"[{po['symbol']}] Live limit order ended without fill (status={status})")
+            self.pending_order = None
+            return "gone"
+        return "pending"   # NEW or PARTIALLY_FILLED — keep waiting
+
+    def cancel_pending_order(self):
+        if not self.pending_order:
+            return
+        po = self.pending_order
+        try:
+            self.client.cancel_order(symbol=po["symbol"], orderId=po["order_id"])
+            log.info(f"[{po['symbol']}] Live limit order cancelled (expired, order={po['order_id']})")
+        except BinanceAPIException as e:
+            log.error(f"[{po['symbol']}] Cancel order failed: {e}")
+        self.pending_order = None
 
     def sell(self, price, reason="signal", cfg={}):
         if not self.position:
@@ -1588,6 +1774,11 @@ def run(cfg: dict, live: bool):
     for sym in symbols:
         traders[sym] = LiveTrader(client, sym, eq_each) if live else PaperTrader(bal_each)
 
+    # Restore any open position / resting order from before a restart, per symbol
+    saved_state = load_all_trader_state()
+    for sym in symbols:
+        restore_trader(traders[sym], saved_state.get(sym), sym)
+
     act_cfg = cfg.get("active_strategy", {})
     active  = ActiveStrategyEngine(act_cfg, cfg["paper_balance"] * 0.3)  # 30% of balance for active
 
@@ -1671,7 +1862,22 @@ def run(cfg: dict, live: bool):
                     last_alert = f"{sym} {t['reason']}: {sign}{t['pnl']:.2f} USDT"
 
                 # ── Pending limit order: fill or expire ──────
-                if sym in pending_limit_orders and not trader.position:
+                if live and getattr(trader, "pending_order", None):
+                    po = trader.pending_order
+                    if po.get("expires_at") and datetime.now(timezone.utc) >= po["expires_at"]:
+                        trader.cancel_pending_order()
+                        last_alert = f"Live limit order expired [{sym}]"
+                    else:
+                        order_status = trader.check_pending_order()
+                        if order_status == "filled":
+                            skip_tracker.trade_opened(sym)
+                            p = trader.position
+                            tg.send(f"📈 LIVE LIMIT FILL [{sym}]\nFill: {p['entry']:.2f}  "
+                                    f"Size: {p['usdt']:.2f}\nStop: {p['stop']:.2f}  TP: {p['tp']:.2f}")
+                            last_alert = f"Live limit fill {sym} @ {p['entry']:.2f}"
+                        elif order_status == "gone":
+                            last_alert = f"Live limit order ended without fill [{sym}]"
+                elif sym in pending_limit_orders and not trader.position:
                     plo = pending_limit_orders[sym]
                     if datetime.now(timezone.utc) >= plo["expires_at"]:
                         log.info(f"[{sym}] Limit order expired (limit was {plo['price']:.2f})")
@@ -1750,7 +1956,7 @@ def run(cfg: dict, live: bool):
                          f"({strat_sel.get('reason', '')})")
 
                 # ── Track skip reasons ────────────────────────
-                if not paused and not trader.position:
+                if not paused and not trader.position and not getattr(trader, "pending_order", None):
                     if not score_data["htf_bull"]:
                         skip_tracker.skip(sym, "trend_filter")
                     elif score_data["components"]["regime"]["score"] == 0:
@@ -1770,7 +1976,7 @@ def run(cfg: dict, live: bool):
 
                 # ── Execute core signal ───────────────────────
                 no_trade_reason = ""
-                if not paused and not trader.position:
+                if not paused and not trader.position and not getattr(trader, "pending_order", None):
                     if signal == "buy" and score_data["trade_allowed"]:
                         # Dynamic TP: let winners run in trending, take profit fast in ranging
                         if cfg.get("dynamic_tp_by_regime", True):
@@ -1785,10 +1991,24 @@ def run(cfg: dict, live: bool):
                             equity_override=eq_each,
                             risk_pct_override=risk_mode_data["risk_pct"],
                         )
-                        use_lim = (cfg.get("use_limit_orders", True)
-                                   and not live
-                                   and sym not in pending_limit_orders)
-                        if use_lim:
+                        already_pending = (bool(getattr(trader, "pending_order", None)) if live
+                                            else sym in pending_limit_orders)
+                        use_lim = cfg.get("use_limit_orders", True) and not already_pending
+                        if use_lim and live:
+                            expires_at = (datetime.now(timezone.utc)
+                                          + timedelta(hours=cfg.get("limit_order_expiry_h", 4)))
+                            placed = trader.place_limit_buy(sym, price, usdt, stop, tp, cfg,
+                                                             atr=atr, expires_at=expires_at)
+                            if placed:
+                                skip_tracker.trade_opened(sym)
+                                tg.send(f"🎯 LIVE limit order placed [{sym}]\nLimit: {price:.2f}  "
+                                        f"Size: {usdt:.2f}\nStop: {stop:.2f}  TP: {tp:.2f}\n"
+                                        f"Score: {score_data['total']}/100  "
+                                        f"Risk: {risk_mode_data['mode']} ({risk_mode_data['risk_pct']}%)")
+                                last_alert = f"Live limit placed {sym} @ {price:.2f} (score {score_data['total']})"
+                            else:
+                                no_trade_reason = "Live limit order placement failed or skipped (see log)"
+                        elif use_lim:
                             expires_at = (datetime.now(timezone.utc)
                                           + timedelta(hours=cfg.get("limit_order_expiry_h", 4)))
                             pending_limit_orders[sym] = {
@@ -1816,6 +2036,8 @@ def run(cfg: dict, live: bool):
                         log.info(f"[{sym}] No trade: {top_miss} | Score {score_data['total']}/{cfg.get('score_threshold',70)}")
                 elif trader.position:
                     no_trade_reason = "Holding position — monitoring stop and TP"
+                elif getattr(trader, "pending_order", None):
+                    no_trade_reason = "Live limit order resting — awaiting fill or expiry"
                 else:
                     no_trade_reason = f"Kill switch or volatility filter active"
 
@@ -1878,6 +2100,9 @@ def run(cfg: dict, live: bool):
             if iteration % 20 == 0:
                 for sym, t in traders.items():
                     log.info(f"  ── [{sym}] STATS: {t.stats()}")
+
+            # ── Persist trader state (open positions / resting orders) ─
+            save_trader_state(traders)
 
             # ── Write dashboard ───────────────────────────────
             ref_trader = list(traders.values())[0]
