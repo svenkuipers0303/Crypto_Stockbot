@@ -988,6 +988,70 @@ No CONFIG or code changes made.
    response is a signal to stop generating more of the same, not to try
    harder at the same thing.
 
+### 2026-08-20 (status check only — egress still blocked, 15th consecutive day; PR #2 now 14 days unreviewed; time redirected to stock-advisory, real bug found+fixed there)
+
+**Egress re-tested, same method as every prior check**: `api.binance.com`,
+`api.coingecko.com`, `api.kraken.com` all still `403` at the CONNECT tunnel
+stage (confirmed via direct `curl` and `$HTTPS_PROXY/__agentproxy/status`'s
+`recentRelayFailures`), `pypi.org` still `200` as control. No change since
+08-19. `fetch_history()` still has no offline fallback (re-checked the
+function directly, not just the log's prior claim), and no cached OHLCV data
+exists anywhere in the repo to substitute. **No new backtest was possible
+this session.** This routine's own outstanding tasks — TP_RR=1.5 +
+no-trailing-stop + 2x-fees combined confirmation on BTC/SOL, and the
+full-pipeline UNIUSDT run — remain blocked exactly where 08-19 left them,
+now 15 consecutive days.
+
+**PR #2 checked directly (`get`, `get_comments`, `get_reviews`)**: still
+open, `mergeable_state: clean`, zero comments and zero reviews, 14 days old
+(opened 08-06). No new PR opened here — nothing new to test without live
+data, same reasoning as every entry since 08-13.
+
+**No CONFIG or code changes made in this repo this session.**
+
+**Time redirected to stock-advisory (secondary task), per this routine's own
+established pattern when the primary is egress-blocked.** Per that repo's
+own 08-19 "what's next" guidance (test-coverage checklist now closed),
+picked a scoring-quality item and found a real bug on close reading of
+`StockAdvisor.__init__`: `USER_PROFILES.get(profile_key,
+USER_PROFILES["balanced"])` returns a live reference into the module-level
+dict, not a copy, so `self.profile["key"] = profile_key` permanently mutated
+the shared global — an invalid `--profile` name silently fell back to
+`balanced`'s weights correctly but wrote the typo into the *global*
+`balanced` dict's `"key"` field, which the analysis cache then reports as
+the profile that was used. Fixed by copying the dict and validating the key
+before falling back; added 3 regression tests, mutation-tested them against
+the reverted pre-fix code to confirm they actually catch it (all 3 failed as
+expected), 68/68 full suite passing after the fix. Opened as stock-advisory
+PR #10. Full detail in `stock-advisory/IMPROVEMENT_LOG.md`'s 2026-08-20
+entry, not duplicated here.
+
+**Cross-repo PR backlog is back up to 5** (all independently verified,
+non-overlapping, zero review activity on any of them): this repo's #2 (14
+days), stock-advisory's #6 (12 days), #7 (9 days), #9 (1 day), and #10 (new
+this session). This matches the prior peak that triggered a notification on
+08-13 — sending one this session too, since "a real fix landed and the
+backlog is back to peak size" is new information, not a repeat of
+yesterday's unchanged status.
+
+**What a stranger should do next:**
+1. Get a human to review the 5-PR backlog: this repo's #2 (14 days,
+   `mergeable_state: clean`) and stock-advisory's #6/#7/#9/#10 (up to 12
+   days). All still safe, verified, non-conflicting per their own
+   descriptions.
+2. If egress is ever restored, re-run BTC/SOL at 1095d against `main`
+   **after PR #2 merges** (not before — see 08-11 entry for why), then
+   UNIUSDT — 15+ consecutive days blocked now.
+3. The trade_count/readiness human decision (2026-08-04/05 entries) is
+   still open and unaddressed.
+4. Re-check egress before assuming another blocked day — same fast `curl`
+   check as always, in case the policy changes without notice.
+5. In stock-advisory: the profile-mutation bug's root cause (a `.get(key,
+   GLOBAL[...])` call returning a live reference rather than a copy) may not
+   be isolated to `StockAdvisor.__init__` — worth grepping for the same
+   shape elsewhere in `stock_advisor.py` before assuming it's fully closed
+   out. See that repo's PR #10 description.
+
 ### 2026-08-14 (status check only — egress still blocked, 10th consecutive day; PR #2 now 8 days unreviewed; no new PR, no repeat notification)
 
 **Egress re-tested, same method as every prior check**: `api.binance.com`,
