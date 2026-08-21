@@ -1004,7 +1004,9 @@ def _deser_pending_order(d):
         d["expires_at"] = datetime.fromisoformat(d["expires_at"])
     return d
 
-def save_trader_state(traders: dict):
+PAPER_PENDING_KEY = "_paper_pending_limit_orders"   # not a valid symbol, safe to use as a sentinel key
+
+def save_trader_state(traders: dict, pending_limit_orders: dict | None = None):
     try:
         data = {}
         for sym, t in traders.items():
@@ -1020,6 +1022,9 @@ def save_trader_state(traders: dict):
                 "weekly_reset":  t.weekly_reset,
                 "trades":        t.trades,
             }
+        if pending_limit_orders:
+            data[PAPER_PENDING_KEY] = {sym: _ser_pending_order(plo)
+                                        for sym, plo in pending_limit_orders.items()}
         tmp = STATE_FILE + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f)
@@ -1055,6 +1060,18 @@ def restore_trader(trader, saved: dict, sym: str):
     if getattr(trader, "pending_order", None):
         log.info(f"[{sym}] Restored pending order from disk: order_id="
                  f"{trader.pending_order.get('order_id')}")
+
+def restore_pending_limit_orders(saved_state: dict) -> dict:
+    """Paper-mode resting limit orders live in run()'s module-level
+    `pending_limit_orders` dict, not on a trader object, so they need their
+    own restore path alongside restore_trader() (same disk write, different
+    part of the state file — see PAPER_PENDING_KEY)."""
+    raw = saved_state.get(PAPER_PENDING_KEY) or {}
+    restored = {sym: _deser_pending_order(plo) for sym, plo in raw.items()}
+    for sym, plo in restored.items():
+        log.info(f"[{sym}] Restored pending paper limit order from disk: "
+                 f"price={plo.get('price')}")
+    return restored
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1779,10 +1796,14 @@ def run(cfg: dict, live: bool):
     for sym in symbols:
         traders[sym] = LiveTrader(client, sym, eq_each) if live else PaperTrader(bal_each)
 
+    pending_limit_orders: dict = {}   # sym → {price, stop, tp, usdt, expires_at} (paper mode only)
+
     # Restore any open position / resting order from before a restart, per symbol
     saved_state = load_all_trader_state()
     for sym in symbols:
         restore_trader(traders[sym], saved_state.get(sym), sym)
+    if not live:
+        pending_limit_orders.update(restore_pending_limit_orders(saved_state))
 
     act_cfg = cfg.get("active_strategy", {})
     active  = ActiveStrategyEngine(act_cfg, cfg["paper_balance"] * 0.3)  # 30% of balance for active
@@ -1808,7 +1829,6 @@ def run(cfg: dict, live: bool):
     api_errors            = 0
     last_alert            = "Bot started"
     fg_val, fg_label      = fetch_fear_greed()
-    pending_limit_orders: dict = {}   # sym → {price, stop, tp, usdt, expires_at}
 
     while True:
         # ── Emergency stop ────────────────────────────────────
@@ -2107,7 +2127,7 @@ def run(cfg: dict, live: bool):
                     log.info(f"  ── [{sym}] STATS: {t.stats()}")
 
             # ── Persist trader state (open positions / resting orders) ─
-            save_trader_state(traders)
+            save_trader_state(traders, pending_limit_orders if not live else None)
 
             # ── Write dashboard ───────────────────────────────
             ref_trader = list(traders.values())[0]

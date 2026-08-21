@@ -1344,3 +1344,135 @@ last item on that repo's original test-coverage checklist. Full detail in
    merge) — that repo's next task should come from its other checklist
    categories (data robustness, scoring-quality sanity checks) rather than
    more test files for their own sake.
+
+### 2026-08-21 (egress still blocked, 16th consecutive day; PR #2 confirmed merged; found+fixed a real gap in the human's direct state-persistence commit)
+
+**Egress re-tested, same method as every prior check**: `api.binance.com`,
+`api.coingecko.com`, `api.kraken.com` all still `403` at the CONNECT tunnel
+stage (confirmed via direct `curl` and `$HTTPS_PROXY/__agentproxy/status`'s
+`recentRelayFailures`), `pypi.org` still `200` as control. No change since
+08-20. `fetch_history()` still has no offline fallback. **No new backtest
+was possible this session.** The outstanding tasks — TP_RR=1.5 +
+no-trailing-stop + 2x-fees CLI reproduction on BTC/SOL now that PR #2 has
+merged, and the full-pipeline UNIUSDT run — remain blocked, 16 consecutive
+days now.
+
+**Good news: PR #2 is merged.** `pull_request_read` confirms
+`merged: true`, `merged_by: svenkuipers0303`, merged 2026-08-20. `main` now
+has the `use_limit_orders` CLI-path fix — the plain `python backtest.py
+--symbol ... --days 1095` command should now reproduce the ~90/100 BTC /
+~84/100 SOL numbers directly, no custom script needed. Still unconfirmed
+in-environment (still blocked), same as every entry since 08-06. No open
+PRs remain on this repo.
+
+**Also found on `main`: the repo owner pushed a direct commit** (`f4e4d58`,
+2026-08-20, not through a PR — their own commit, not this routine's) adding
+real exchange semantics for live limit orders (`place_limit_buy`,
+`check_pending_order`, `cancel_pending_order`, a `MIN_NOTIONAL` guard) and
+disk-backed trader-state persistence (`save_trader_state`/`restore_trader`,
+wired into `LiveTrader`/`PaperTrader` construction and the main loop). Its
+commit message says this fixes restart-survival for open positions/pending
+orders on "Neither PaperTrader nor LiveTrader" — worth a close read since it
+touches `LiveTrader` directly (this file's safety rules require a mocked
+smoke test whenever that happens), and because a new commit landing outside
+this routine's own PR review loop hadn't been checked yet.
+
+**Read it closely and found a real, verifiable gap, not just a style nit.**
+`save_trader_state()`/`restore_trader()` only persist the `pending_order`
+attribute that lives *on a trader object* — which only `LiveTrader` has.
+Paper-mode resting limit orders, though, are never attached to the trader at
+all; they live in a separate module-level `pending_limit_orders: dict`
+inside `run()` (`sym -> {price, stop, tp, usdt, atr, expires_at}`), created
+and consumed entirely outside the `PaperTrader` class. `save_trader_state()`
+never looked at that dict, so **every resting paper limit order was still
+silently lost on restart** — the exact failure mode the commit's own message
+claims to have closed for both trader types. Since this bot only ever runs
+in paper mode (`--live` is off-limits per this file's safety rules) and
+`CONFIG["use_limit_orders"] = True` is the current default, this gap sat
+directly in the bot's actual, only-ever-exercised operating mode: a paper
+limit order placed, then a restart before it filled or expired, silently
+forgets it ever happened — the trader loses the record of the order without
+ever cancelling it or knowing it existed, which also desyncs `balance`
+bookkeeping from what's actually resting (unfilled, so no `usdt` was ever
+deducted — the loss here is state/observability, not phantom money, but
+losing track of a resting order on the exchange side is still exactly the
+"restart loses state" bug class this commit set out to fix).
+
+**Fix, in `bot.py` only** (feature branch `crypto/persist-paper-pending-limit-orders`):
+1. `save_trader_state()` gained an optional second argument,
+   `pending_limit_orders: dict | None`, serialized under a new sentinel key
+   (`PAPER_PENDING_KEY = "_paper_pending_limit_orders"`, chosen so it can
+   never collide with a real trading symbol) alongside the existing
+   per-symbol trader state in the same JSON file — no new file, no schema
+   version bump.
+2. New `restore_pending_limit_orders(saved_state)` mirrors `restore_trader()`
+   for this dict-shaped (not object-shaped) piece of state, deserializing
+   `expires_at` back to a `datetime` the same way `_deser_pending_order`
+   already does for `LiveTrader.pending_order`.
+3. `run()`: `pending_limit_orders` is now declared *before* the
+   `load_all_trader_state()`/restore block (it was declared later, after
+   where the restore call needed to happen — moved up, not duplicated) and
+   restored into (paper mode only; live mode's own `pending_order` restore
+   path is untouched). The per-iteration `save_trader_state(traders)` call
+   now passes `pending_limit_orders if not live else None` as the second
+   argument.
+4. **Backward compatible**: `save_trader_state(traders)` with no second
+   argument (the pre-fix call shape) still works — verified directly (see
+   below) — and omits the new key entirely when there's nothing to persist,
+   so a state file written by this version is a strict superset of the old
+   format, not a breaking schema change.
+
+**Verification performed this session (all offline, no Binance/network
+needed)**:
+- `python3 -m py_compile bot.py backtest.py` — clean.
+- Mocked round-trip smoke test (`PaperTrader.buy()` + a synthetic
+  `pending_limit_orders["SOLUSDT"]` entry -> `save_trader_state()` ->
+  `load_all_trader_state()` -> `restore_trader()` +
+  `restore_pending_limit_orders()`): confirmed the open position, balance,
+  and — the new part — the paper pending limit order (including its
+  `datetime` `expires_at` round-tripping through ISO-format JSON correctly)
+  all come back byte-identical. Also exercised `LiveTrader.pending_order`
+  through the same new `save_trader_state()` signature to confirm that
+  existing path wasn't disturbed, and a call with no second argument to
+  confirm backward compatibility.
+- **Mutation-tested the test itself**: ran the identical test script against
+  the pre-fix code (`git stash`) — it fails immediately with `TypeError:
+  save_trader_state() takes 1 positional argument but 2 were given` before
+  even reaching the assertion that would catch the silent data loss,
+  confirming the test genuinely exercises the fix rather than passing
+  trivially either way.
+- Standard mocked-client smoke test from this file's safety rules
+  (`PaperTrader(200.0)`, `LiveTrader(FakeClient(), 'BTCUSDT', 100.0)`) —
+  both still instantiate cleanly.
+- Also checked, while reading this code, whether trade-relevant fields
+  (`price`/`stop`/`tp`/`usdt`, computed from `pandas`/`numpy` arithmetic)
+  could break `json.dump()` via `numpy.float64` — they don't, because
+  `numpy.float64` subclasses Python's built-in `float` and Python's `json`
+  encoder special-cases via `isinstance(x, float)`. Worth a mention since it
+  was a real hypothesis, checked and disproven with a direct
+  `isinstance`/`json.dumps` test, not just assumed away.
+
+**Not touched**: `CONFIG`, live-trading behavior, `--live`, credentials, the
+strategy/readiness numbers already in this log, the trade_count/pooling
+human decision from 2026-08-04/05 (still open, still unaddressed).
+
+**What a stranger should do next:**
+1. If egress is ever restored, the highest-value action is still the one
+   named in every entry since 08-06: run the plain CLI
+   (`python backtest.py --symbol BTCUSDT --strategy auto --days 1095`, then
+   SOLUSDT) against current `main` (PR #2 is merged now, so this should work
+   without a custom script) and confirm it reproduces ~90/100 BTC / ~84/100
+   SOL. Then UNIUSDT — 16+ consecutive days blocked now.
+2. Review this session's PR (`crypto/persist-paper-pending-limit-orders`) —
+   it's a narrow, offline-verified fix to a real gap in the 08-20 direct
+   commit, same review-needed status as PR #2 was.
+3. The trade_count/readiness human decision (2026-08-04/05 entries) is
+   still open and unaddressed.
+4. Re-check egress before assuming another blocked day — same fast `curl`
+   check as always.
+5. Worth a quick human sanity-check of the live-limit-order code path in
+   `f4e4d58` (`place_limit_buy`/`check_pending_order`/`cancel_pending_order`)
+   against a real (testnet, not mainnet) Binance account before `--live` is
+   ever considered — this session verified it structurally (compiles,
+   instantiates, mocked-client construction) but did not exercise it against
+   a real or sandboxed exchange API, since no network access was available.
