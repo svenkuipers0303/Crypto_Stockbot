@@ -1344,3 +1344,124 @@ last item on that repo's original test-coverage checklist. Full detail in
    merge) — that repo's next task should come from its other checklist
    categories (data robustness, scoring-quality sanity checks) rather than
    more test files for their own sake.
+
+### 2026-08-22 (egress still blocked, 17th consecutive day; PR #2 confirmed merged, PR #3 still open; found+fixed a partial-fill data-loss bug in the live limit-order path)
+
+**Egress re-tested, same method as every prior check**: `api.binance.com`,
+`api.coingecko.com`, `api.kraken.com` all still `403` at the CONNECT tunnel
+stage (`gateway answered 403 to CONNECT (policy denial or upstream failure)`
+per `$HTTPS_PROXY/__agentproxy/status`), `pypi.org` still `200` through the
+same proxy as a control. No change since 08-21. `fetch_history()` still has
+no offline fallback. **No new backtest was possible this session.** The
+outstanding tasks named in this routine's own seed instructions — the
+TP_RR=1.5 + no-trailing-stop + 2x-fees plain-CLI reproduction on BTC/SOL
+(now that PR #2 has merged), and the full-pipeline UNIUSDT run — remain
+blocked, 17 consecutive days now.
+
+**PR state checked directly.** **PR #2 is merged** (`merged: true`,
+`merged_by: svenkuipers0303`, merged 2026-08-20) — confirms the 08-21
+entry's finding, `main` now has the `use_limit_orders` CLI-path fix.
+**PR #3** ("Persist paper-mode pending limit orders across restarts",
+opened 08-21 by the prior session) is still open, 1 day old, no review yet
+— too fresh to flag as stuck, unlike PR #2's earlier 14-day wait. No action
+needed on it from this session.
+
+**Also confirmed on `main`**: `CONFIG` still has `trailing_stop_enabled:
+False`, `dynamic_tp_by_regime: False`, `take_profit_rr: 1.5`,
+`use_limit_orders: True` — the PR #1 defaults from 08-05, unchanged. Since
+egress is still blocked, this session did not attempt a new backtest and
+instead continued the pattern from 08-20/08-21: read the human's direct
+commit (`f4e4d58`, 2026-08-20) closely for further gaps beyond the one PR #3
+already found and fixed there.
+
+**Found a second real gap in `f4e4d58`, distinct from PR #3's**:
+`LiveTrader.cancel_pending_order()` called `self.client.cancel_order(...)`
+and then unconditionally discarded `pending_order`, without ever looking at
+the cancel response. On Binance, cancelling a `PARTIALLY_FILLED` limit
+order only cancels the *remaining* unfilled quantity — whatever already
+executed is a real position with real USDT already spent and real crypto
+already held on the exchange. The old code threw that state away: no
+`position` was ever created for it, `balance` was never debited, and
+`check_stops()`/`sell()` would never see it — a resting expiry cancel that
+happened to race a partial fill would leave a completely untracked,
+unmonitored position sitting on the exchange with no stop-loss, discovered
+only by a human noticing their exchange balance doesn't match the bot's
+dashboard. Same "restart/exit path silently loses live-order state" bug
+class as PR #3's finding (and the original `f4e4d58` commit message's own
+stated goal), just a different code path (a lifecycle-transition race, not
+a process restart).
+
+**Fix, in `bot.py` only** (feature branch
+`crypto/fix-partial-fill-lost-on-limit-cancel`, on top of current `main`,
+independent of PR #3): `cancel_pending_order()` now reads `executedQty` /
+`cummulativeQuoteQty` from `cancel_order()`'s own response. A genuine
+no-fill cancel behaves exactly as before (`pending_order` cleared, nothing
+else changes). A partial fill is converted into a tracked `position` with
+`usdt` scaled proportionally to the executed quantity, `balance` debited by
+that amount, and the function now returns `True`/`False` so the `run()`
+loop's expiry branch can tell the difference — on `True` it fires a
+Telegram alert (`⚠️ LIVE LIMIT PARTIAL FILL on expiry`) and calls
+`skip_tracker.trade_opened(sym)` instead of silently logging "expired".
+
+**Verification performed this session (all offline, no Binance/network
+needed)**:
+- `python3 -m py_compile bot.py backtest.py` — clean.
+- Installed `requirements.txt` (`pandas`/`numpy`/`python-binance` — pypi.org
+  is reachable through the proxy even though exchange APIs aren't) so
+  `import bot` actually works this session, rather than only grep-reading
+  the diff as recent infra-blocked entries have done.
+- Mocked-client script (`FakeClient.cancel_order` returning a canned
+  response) covering three cases: (1) no-fill cancel — `pending_order`
+  clears, no `position` created, `balance` unchanged; (2) partial fill
+  (0.001 of an intended 0.002 BTC, 50.0 USDT of cummulative quote) — cancel
+  returns `True`, `position` created with `qty=0.001`, `entry=50000.0`,
+  `usdt=50.0` (exactly half, matching the half-filled quantity), `balance`
+  debited by that same 50.0.
+- **Mutation-tested the test itself**: swapped in the exact pre-fix
+  `cancel_pending_order` body (unconditional discard, no response read) and
+  confirmed the same partial-fill scenario now silently produces
+  `position=None`, `balance` unchanged — i.e., the bug reproduces exactly as
+  described, and the test would have caught it before the fix.
+- Standard mocked-client smoke test from this file's safety rules
+  (`PaperTrader(200.0)`, `LiveTrader(FakeClient(), 'BTCUSDT', 100.0)`) —
+  both instantiate cleanly.
+- Accidentally appended two log lines to the tracked `bot.log` while running
+  the mocked test (logging writes there on import) — reverted with `git
+  checkout -- bot.log` before committing; not part of this fix.
+
+**Not touched**: `CONFIG`, `--live`, credentials, the strategy/readiness
+numbers already in this log, the trade_count/pooling human decision from
+2026-08-04/05 (still open, still unaddressed), PR #3 (independent branch,
+untouched by this fix — the two don't conflict: PR #3 touches
+`save_trader_state`/`restore_trader`/the paper-mode `pending_limit_orders`
+dict, this fix touches only `LiveTrader.cancel_pending_order()` and its
+call site in `run()`'s live-mode expiry branch).
+
+**Update**: after finishing and verifying this fix, there was time left this
+session to also do the secondary stock-advisory task (see that repo's
+IMPROVEMENT_LOG.md 2026-08-22 entry — found and fixed a real
+`MarketRegimeDetector` bug there too, PR #11).
+
+**What a stranger should do next:**
+1. Review this session's PR (`crypto/fix-partial-fill-lost-on-limit-cancel`)
+   alongside PR #3 — both are narrow, offline-verified, non-conflicting
+   fixes to the same 08-20 direct commit's live-order code, safe to review
+   together.
+2. If egress is ever restored, the highest-value action is still the one
+   named in every entry since 08-06: run the plain CLI
+   (`python backtest.py --symbol BTCUSDT --strategy auto --days 1095`, then
+   SOLUSDT) against current `main` and confirm it reproduces ~90/100 BTC /
+   ~84/100 SOL without a custom script (PR #2 is merged, so this should now
+   work as documented). Then UNIUSDT — 17+ consecutive days blocked now.
+3. The trade_count/readiness human decision (2026-08-04/05 entries) is
+   still open and unaddressed.
+4. Given two independent sessions (08-21, 08-22) have now each found one
+   real gap in `f4e4d58` by close reading alone, it's plausible there are
+   more latent issues in the live-order path (`place_limit_buy`,
+   `check_pending_order`, `_symbol_filters`/`_round_price` edge cases) —
+   worth another close read specifically of those, not just re-confirming
+   egress, on a day when no new backtest is possible again. None were found
+   in `place_limit_buy`/`check_pending_order`/`_round_price` this session
+   beyond what's fixed here, but they weren't exhaustively fuzzed either.
+5. Re-check egress before assuming another blocked day — same fast `curl`
+   check as always.

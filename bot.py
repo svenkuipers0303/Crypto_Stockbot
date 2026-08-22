@@ -1638,15 +1638,40 @@ class LiveTrader:
         return "pending"   # NEW or PARTIALLY_FILLED — keep waiting
 
     def cancel_pending_order(self):
+        """Cancel the resting limit order. A cancel can race a partial fill on
+        the exchange side — Binance only cancels the remaining unfilled
+        quantity, so any already-executed quantity is a real position that
+        must not be silently dropped. Returns True if a partial fill left an
+        open position behind, False otherwise."""
         if not self.pending_order:
-            return
+            return False
         po = self.pending_order
         try:
-            self.client.cancel_order(symbol=po["symbol"], orderId=po["order_id"])
-            log.info(f"[{po['symbol']}] Live limit order cancelled (expired, order={po['order_id']})")
+            result = self.client.cancel_order(symbol=po["symbol"], orderId=po["order_id"])
         except BinanceAPIException as e:
             log.error(f"[{po['symbol']}] Cancel order failed: {e}")
+            self.pending_order = None
+            return False
+
+        executed = float(result.get("executedQty", 0) or 0)
+        if executed > 0 and po.get("qty"):
+            quote       = float(result.get("cummulativeQuoteQty", 0) or 0)
+            fill        = quote / executed if executed > 0 else po["limit_price"]
+            filled_usdt = po["usdt"] * (executed / po["qty"])
+            self.balance -= filled_usdt
+            self.position = {"symbol": po["symbol"], "entry": fill, "qty": executed,
+                              "stop": po["stop"], "tp": po["tp"], "usdt": filled_usdt,
+                              "atr_entry": po["atr"], "peak": fill,
+                              "entry_ts": datetime.now(timezone.utc)}
+            log.warning(f"[{po['symbol']}] Limit order partially filled before expiry "
+                        f"cancel — {executed} @ {fill:.4f} kept as an open position "
+                        f"(order={po['order_id']})")
+            self.pending_order = None
+            return True
+
+        log.info(f"[{po['symbol']}] Live limit order cancelled (expired, order={po['order_id']}, no fill)")
         self.pending_order = None
+        return False
 
     def sell(self, price, reason="signal", cfg={}):
         if not self.position:
@@ -1870,8 +1895,15 @@ def run(cfg: dict, live: bool):
                 if live and getattr(trader, "pending_order", None):
                     po = trader.pending_order
                     if po.get("expires_at") and datetime.now(timezone.utc) >= po["expires_at"]:
-                        trader.cancel_pending_order()
-                        last_alert = f"Live limit order expired [{sym}]"
+                        partial_fill = trader.cancel_pending_order()
+                        if partial_fill:
+                            skip_tracker.trade_opened(sym)
+                            p = trader.position
+                            tg.send(f"⚠️ LIVE LIMIT PARTIAL FILL on expiry [{sym}]\nFill: {p['entry']:.2f}  "
+                                    f"Size: {p['usdt']:.2f}\nStop: {p['stop']:.2f}  TP: {p['tp']:.2f}")
+                            last_alert = f"Live limit partial fill {sym} @ {p['entry']:.2f}"
+                        else:
+                            last_alert = f"Live limit order expired [{sym}]"
                     else:
                         order_status = trader.check_pending_order()
                         if order_status == "filled":
