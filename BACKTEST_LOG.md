@@ -1437,10 +1437,10 @@ untouched by this fix — the two don't conflict: PR #3 touches
 dict, this fix touches only `LiveTrader.cancel_pending_order()` and its
 call site in `run()`'s live-mode expiry branch).
 
-**Time budget note**: this was the entire session's crypto-side time; did
-not reach stock-advisory this run given the depth of verifying this fix
-(installing deps, writing + mutation-testing the mocked script). Next
-session should pick up stock-advisory if crypto is blocked again.
+**Update**: after finishing and verifying this fix, there was time left this
+session to also do the secondary stock-advisory task (see that repo's
+IMPROVEMENT_LOG.md 2026-08-22 entry — found and fixed a real
+`MarketRegimeDetector` bug there too, PR #11).
 
 **What a stranger should do next:**
 1. Review this session's PR (`crypto/fix-partial-fill-lost-on-limit-cancel`)
